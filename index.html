@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>素数大富豪NEO アシスト版</title>
+    <link rel="stylesheet" href="./styles.css?v=neo-20260703-5" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section id="topBand" class="top-band">
+        <div>
+          <p class="eyebrow">room_14 固定プロトタイプ</p>
+          <h1>素数大富豪NEO</h1>
+          <p class="lead">
+            登録済みの数とアシスト候補を使って、素数を知らなくてもまず1手出せる対戦UIです。
+          </p>
+        </div>
+        <div class="connection-card">
+          <span id="connectionDot" class="dot"></span>
+          <div>
+            <strong id="connectionLabel">接続準備中</strong>
+            <p id="serverLabel">既存サーバーに接続します</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="setupPanel" class="setup-grid">
+        <div class="panel intro-panel">
+          <h2>はじめる</h2>
+          <label class="field-label" for="nameInput">表示名</label>
+          <div class="name-row">
+            <input id="nameInput" autocomplete="nickname" placeholder="例: マグロ" />
+            <button id="randomNameBtn" class="ghost-button" type="button">おまかせ</button>
+          </div>
+          <div class="action-stack">
+            <button id="practiceBtn" class="primary-button" type="button">room_14 に入室する</button>
+            <button id="friendBtn" class="secondary-button setup-shortcut" type="button">友だちと対戦待ちに入る</button>
+            <button id="watchBtn" class="ghost-button setup-shortcut" type="button">観戦だけする</button>
+          </div>
+          <p class="microcopy">
+            最初はサンプルの登録リストを自動で入れます。慣れたら登録欄で編集できます。
+          </p>
+        </div>
+
+        <div class="panel guide-panel">
+          <h2>この画面の考え方</h2>
+          <ol class="plain-steps">
+            <li>手札を見る</li>
+            <li>自分で出せそうなカードを考える</li>
+            <li>迷ったら下の候補を押して準備する</li>
+          </ol>
+          <div class="mini-rules">
+            <span>場より大きい数</span>
+            <span>同じ枚数</span>
+            <span>登録済みならOK</span>
+          </div>
+        </div>
+      </section>
+
+      <section id="roomPanel" class="room-layout hidden">
+        <aside class="side-column">
+          <div class="panel status-panel">
+            <div class="room-title-row">
+              <div>
+                <p class="eyebrow">NEO 制限あり・アシストあり</p>
+                <h2>練習ルーム</h2>
+              </div>
+              <button id="leaveBtn" class="ghost-button compact" type="button">退室</button>
+            </div>
+            <div id="nextHint" class="next-hint">まずはサンプル登録を読み込みます。</div>
+            <dl class="status-list">
+              <div>
+                <dt>状態</dt>
+                <dd id="playStatus">観戦中</dd>
+              </div>
+              <div>
+                <dt>参加者</dt>
+                <dd id="playerList">読み込み中</dd>
+              </div>
+              <div>
+                <dt>手番</dt>
+                <dd id="turnLabel">未開始</dd>
+              </div>
+            </dl>
+            <div class="button-row">
+              <button id="readyBtn" class="secondary-button" type="button">対戦に参加</button>
+              <button id="addCpuBtn" class="ghost-button" type="button">CPU追加</button>
+              <button id="startBtn" class="primary-button" type="button">開始</button>
+            </div>
+          </div>
+
+          <div class="panel register-panel">
+            <div class="panel-heading-row">
+              <h2>登録リスト</h2>
+              <button id="sampleBtn" class="ghost-button compact" type="button">サンプル読込</button>
+            </div>
+            <select id="sampleSelect" class="full-select"></select>
+            <textarea id="primeText" rows="6" spellcheck="false" placeholder="登録素数"></textarea>
+            <textarea id="compositeText" rows="4" spellcheck="false" placeholder="登録合成数"></textarea>
+            <div class="button-row">
+              <button id="saveRegisterBtn" class="secondary-button" type="button">登録する</button>
+              <span id="registerStatus" class="small-status">未登録</span>
+            </div>
+          </div>
+        </aside>
+
+        <section class="game-column">
+          <div class="field-strip">
+            <div>
+              <p class="eyebrow">場</p>
+              <div id="fieldCards" class="field-cards">まだ何も出ていません</div>
+            </div>
+            <div class="metric">
+              <span>山札</span>
+              <strong id="deckCount">-</strong>
+            </div>
+            <div class="metric">
+              <span>手札</span>
+              <strong id="myHandCount">0</strong>
+            </div>
+            <div class="metric">
+              <span>相手</span>
+              <strong id="opponentCounts">-</strong>
+            </div>
+          </div>
+
+          <div class="play-area">
+            <section class="hand-panel">
+              <div class="panel-heading-row">
+                <div>
+                  <p class="eyebrow">自分の手札</p>
+                  <h2>カード</h2>
+                </div>
+                <span id="turnBadge" class="turn-badge">待機中</span>
+              </div>
+              <div id="handCards" class="card-row empty-row">ゲーム開始後に表示されます</div>
+            </section>
+
+            <section class="selected-panel">
+              <div class="panel-heading-row">
+                <div>
+                  <p class="eyebrow">選択中</p>
+                  <h2 id="selectedTitle">カードを選んでください</h2>
+                </div>
+                <button id="clearSelectionBtn" class="ghost-button compact" type="button">クリア</button>
+              </div>
+              <div id="selectedCards" class="card-row empty-row">未選択</div>
+              <div id="jokerControls" class="joker-controls"></div>
+              <div class="button-row action-row">
+                <button id="playBtn" class="primary-button" type="button">出す</button>
+                <button id="compositeModeBtn" class="secondary-button" type="button">合成数出し</button>
+                <button id="drawBtn" class="secondary-button" type="button">ドロー</button>
+                <button id="passBtn" class="ghost-button" type="button">パス</button>
+              </div>
+            </section>
+
+            <section id="compositePanel" class="composite-panel hidden">
+              <div class="panel-heading-row">
+                <div>
+                  <p class="eyebrow">素因数場</p>
+                  <h2 id="compositeTitle">材料札で式を作る</h2>
+                </div>
+                <div class="button-row compact-ops">
+                  <button id="compositeMulBtn" class="ghost-button compact" type="button">×</button>
+                  <button id="compositePowBtn" class="ghost-button compact" type="button">^</button>
+                  <button id="compositeClearBtn" class="ghost-button compact" type="button">解除</button>
+                </div>
+              </div>
+              <div id="compositeCards" class="card-row empty-row">手札から材料札を選んでください</div>
+              <div id="compositeJokerControls" class="joker-controls"></div>
+            </section>
+
+            <section class="assist-panel">
+              <div class="panel-heading-row">
+                <div>
+                  <p class="eyebrow">おすすめ</p>
+                  <h2>出せる候補</h2>
+                </div>
+                <div class="assist-actions">
+                  <button id="assistStrongBtn" class="filter-chip active" type="button">強い順</button>
+                  <button id="assistEasyBtn" class="filter-chip" type="button">弱い順</button>
+                  <button id="assistManyBtn" class="filter-chip" type="button">50件</button>
+                </div>
+              </div>
+              <div id="assistList" class="assist-list empty">
+                ゲームが始まると、ここに「押せば選べる」候補が出ます。
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <aside class="log-column">
+          <div class="panel log-panel">
+            <h2>チャット</h2>
+            <div id="logBox" class="log-box"></div>
+            <div class="chat-row">
+              <input id="chatInput" placeholder="短いメッセージ" />
+              <button id="chatBtn" class="ghost-button compact" type="button">送信</button>
+            </div>
+          </div>
+        </aside>
+      </section>
+    </main>
+
+    <script src="./app.js?v=neo-20260703-5"></script>
+  </body>
+</html>

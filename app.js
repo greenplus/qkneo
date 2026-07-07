@@ -1,0 +1,1082 @@
+const CONFIG = {
+  wsUrl: new URLSearchParams(location.search).get("ws") || "wss://web-production-c8e68.up.railway.app/ws",
+  roomId: "room_14",
+  defaultSampleKey: "sashimi2024",
+};
+
+const state = {
+  ws: null,
+  connected: false,
+  playerId: null,
+  playerName: "",
+  roomJoined: false,
+  appMode: "setup",
+  roomState: "waiting",
+  isWaiting: false,
+  currentTurn: "",
+  roomCounts: {},
+  roomRules: {},
+  roomCpuProfiles: {},
+  currentRoomHasCpu: false,
+  sampleOptions: [],
+  hand: [],
+  selectedCards: [],
+  jokerAssignedRanks: [],
+  compositeMode: false,
+  compositeTokens: [],
+  compositeJokerAssign: [],
+  lastAssistCandidates: [],
+  assistFilters: {
+    target_scope: "all",
+    limit_mode: "ten",
+    order: "strong",
+    count_scope: "field",
+    card_count: "1",
+    face_mode: "letters",
+  },
+  pendingFlow: null,
+  sampleLoadedForFlow: false,
+  cpuRequestedForFlow: false,
+  startRequestedForFlow: false,
+  assistTimer: null,
+};
+
+const el = {};
+
+document.addEventListener("DOMContentLoaded", () => {
+  bindElements();
+  bindEvents();
+  setRandomNameIfEmpty();
+  connect();
+  renderAll();
+});
+
+function bindElements() {
+  [
+    "connectionDot",
+    "connectionLabel",
+    "serverLabel",
+    "setupPanel",
+    "roomPanel",
+    "nameInput",
+    "randomNameBtn",
+    "practiceBtn",
+    "friendBtn",
+    "watchBtn",
+    "leaveBtn",
+    "nextHint",
+    "playStatus",
+    "playerList",
+    "turnLabel",
+    "readyBtn",
+    "addCpuBtn",
+    "startBtn",
+    "sampleBtn",
+    "sampleSelect",
+    "primeText",
+    "compositeText",
+    "saveRegisterBtn",
+    "registerStatus",
+    "fieldCards",
+    "deckCount",
+    "myHandCount",
+    "opponentCounts",
+    "assistStrongBtn",
+    "assistEasyBtn",
+    "assistManyBtn",
+    "assistList",
+    "selectedTitle",
+    "clearSelectionBtn",
+    "selectedCards",
+    "jokerControls",
+    "compositeModeBtn",
+    "compositePanel",
+    "compositeTitle",
+    "compositeCards",
+    "compositeJokerControls",
+    "compositeMulBtn",
+    "compositePowBtn",
+    "compositeClearBtn",
+    "playBtn",
+    "drawBtn",
+    "passBtn",
+    "handCards",
+    "turnBadge",
+    "logBox",
+    "chatInput",
+    "chatBtn",
+  ].forEach((id) => {
+    el[id] = document.getElementById(id);
+  });
+}
+
+function bindEvents() {
+  el.randomNameBtn.addEventListener("click", setRandomName);
+  el.practiceBtn.addEventListener("click", () => startFlow("watch"));
+  el.friendBtn.addEventListener("click", () => startFlow("friend"));
+  el.watchBtn.addEventListener("click", () => startFlow("watch"));
+  el.leaveBtn.addEventListener("click", leaveRoom);
+  el.readyBtn.addEventListener("click", toggleReady);
+  el.addCpuBtn.addEventListener("click", addCpu);
+  el.startBtn.addEventListener("click", startGame);
+  el.sampleBtn.addEventListener("click", loadSample);
+  el.saveRegisterBtn.addEventListener("click", saveRegisteredNumbers);
+  el.clearSelectionBtn.addEventListener("click", clearSelection);
+  el.compositeModeBtn.addEventListener("click", toggleCompositeMode);
+  el.compositeMulBtn.addEventListener("click", () => addCompositeOp("×"));
+  el.compositePowBtn.addEventListener("click", () => addCompositeOp("^"));
+  el.compositeClearBtn.addEventListener("click", () => {
+    clearCompositeMode();
+    renderAll();
+  });
+  el.playBtn.addEventListener("click", playSelected);
+  el.drawBtn.addEventListener("click", () => send({ type: "draw_card" }));
+  el.passBtn.addEventListener("click", () => send({ type: "pass" }));
+  el.chatBtn.addEventListener("click", sendChat);
+  el.chatInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") sendChat();
+  });
+  el.assistStrongBtn.addEventListener("click", () => setAssistOrder("strong"));
+  el.assistEasyBtn.addEventListener("click", () => setAssistOrder("weak"));
+  el.assistManyBtn.addEventListener("click", toggleAssistLimit);
+}
+
+function connect() {
+  setConnection("connecting", "接続中", CONFIG.wsUrl);
+  state.ws = new WebSocket(CONFIG.wsUrl);
+
+  state.ws.addEventListener("open", () => {
+    state.connected = true;
+    setConnection("online", "接続済み", "既存サーバー / room_14 を使います");
+    send({ type: "get_room_counts" });
+  });
+
+  state.ws.addEventListener("message", (event) => {
+    const message = JSON.parse(event.data);
+    handleMessage(message);
+  });
+
+  state.ws.addEventListener("close", () => {
+    state.connected = false;
+    setConnection("error", "切断されました", "ページを再読み込みすると再接続します");
+    log("system", "サーバーとの接続が切れました。");
+    renderAll();
+  });
+
+  state.ws.addEventListener("error", () => {
+    setConnection("error", "接続エラー", "サーバーに接続できませんでした");
+  });
+}
+
+function handleMessage(msg) {
+  switch (msg.type) {
+    case "your_id":
+      state.playerId = msg.id;
+      break;
+    case "room_counts":
+      state.roomCounts = msg.counts || {};
+      state.roomRules = msg.rules || {};
+      state.roomCpuProfiles = msg.cpu_profiles || {};
+      state.sampleOptions = msg.registered_sample_options || [];
+      renderSampleOptions();
+      break;
+    case "name_set":
+      state.playerName = msg.name || state.playerName;
+      break;
+    case "room_state_initialization":
+      state.roomJoined = true;
+      state.roomState = msg.room_state || "waiting";
+      state.appMode = msg.room_state === "playing" ? "playing" : "room";
+      continuePendingFlowAfterJoin();
+      break;
+    case "update_room_status":
+      if (msg.room_id === CONFIG.roomId) {
+        state.roomCounts[CONFIG.roomId] = msg.count;
+        state.currentRoomHasCpu = (msg.player_list || []).some((player) => player.is_cpu);
+        state.roomCpuProfiles[CONFIG.roomId] = msg.cpu_profiles || state.roomCpuProfiles[CONFIG.roomId] || [];
+        renderPlayers(msg.player_list || [], msg.waiting_count || 0);
+        continuePendingFlowAfterCpuStatus();
+      }
+      break;
+    case "registered_numbers_updated":
+    case "registered_primes_updated":
+      renderRegisteredStatus(msg);
+      state.sampleLoadedForFlow = true;
+      continuePendingFlowAfterRegistration();
+      break;
+    case "game_start":
+      state.appMode = "playing";
+      state.roomState = "playing";
+      clearSelection();
+      log("system", "ゲームが始まりました。アシスト候補から選んでみましょう。");
+      break;
+    case "deal":
+      state.hand = msg.your_hand || [];
+      clearSelection();
+      scheduleAssist();
+      break;
+    case "hand_update":
+      state.hand = msg.your_hand || [];
+      renderHand();
+      scheduleAssist();
+      break;
+    case "game_update":
+      state.appMode = msg.state === "playing" ? "playing" : state.appMode;
+      state.roomState = msg.state || state.roomState;
+      state.currentTurn = msg.current_turn || "";
+      state.currentRoomHasCpu = (msg.player_list || []).some((player) => player.is_cpu);
+      renderField(msg);
+      renderPlayers(msg.player_list || [], null);
+      scheduleAssist();
+      break;
+    case "turn_update":
+    case "next_turn":
+      state.currentTurn = msg.current_turn || "";
+      scheduleAssist();
+      break;
+    case "prime_assist_result":
+      state.lastAssistCandidates = msg.candidates || [];
+      renderAssist();
+      break;
+    case "action_result":
+      if (msg.action === "pass") log("system", "パスしました。");
+      if (msg.action === "play_card") log("system", "カードが出されました。");
+      break;
+    case "penalty":
+      log("system", "ペナルティが発生しました。");
+      break;
+    case "game_over":
+      state.roomState = msg.state || "waiting";
+      state.appMode = "room";
+      state.hand = [];
+      clearSelection();
+      log("system", `${msg.winner || "勝者"} が勝利しました。`);
+      break;
+    case "score_record":
+      log("score", (msg.lines || []).join(" / "));
+      break;
+    case "chat":
+      log(msg.sender || "chat", msg.message || "");
+      break;
+    case "error":
+      log("error", msg.message || "エラーが発生しました。");
+      break;
+  }
+  renderAll();
+}
+
+function startFlow(flow) {
+  ensureName();
+  state.pendingFlow = flow;
+  state.sampleLoadedForFlow = false;
+  state.cpuRequestedForFlow = false;
+  state.startRequestedForFlow = false;
+  state.appMode = "room";
+  send({ type: "set_name", name: state.playerName });
+  send({ type: "join_room", room_id: CONFIG.roomId });
+  renderAll();
+}
+
+function continuePendingFlowAfterJoin() {
+  if (!state.pendingFlow) return;
+  if (state.pendingFlow !== "watch") {
+    loadSample();
+    if (!state.isWaiting) {
+      state.isWaiting = true;
+      send({ type: "change_status", status: "waiting" });
+    }
+  }
+}
+
+function continuePendingFlowAfterRegistration() {
+  if (state.pendingFlow === "practice") {
+    if (!state.currentRoomHasCpu && !state.cpuRequestedForFlow) {
+      state.cpuRequestedForFlow = true;
+      addCpu();
+      return;
+    }
+    if (!state.startRequestedForFlow) {
+      state.startRequestedForFlow = true;
+      setTimeout(startGame, 350);
+    }
+  }
+}
+
+function continuePendingFlowAfterCpuStatus() {
+  if (state.pendingFlow === "practice" && state.sampleLoadedForFlow && state.currentRoomHasCpu && !state.startRequestedForFlow) {
+    state.startRequestedForFlow = true;
+    setTimeout(startGame, 350);
+  }
+}
+
+function ensureName() {
+  const typed = el.nameInput.value.trim();
+  state.playerName = typed || randomName();
+  el.nameInput.value = state.playerName;
+}
+
+function setRandomNameIfEmpty() {
+  if (!el.nameInput.value.trim()) el.nameInput.placeholder = `例: ${randomSushiName()}`;
+}
+
+function setRandomName() {
+  el.nameInput.value = randomName();
+}
+
+function randomName() {
+  return `プレイヤー${Math.floor(1000 + Math.random() * 9000)}`;
+}
+
+function randomSushiName() {
+  const sushiNames = [
+    "マグロ",
+    "サーモン",
+    "イカ",
+    "エビ",
+    "タマゴ",
+    "アナゴ",
+    "イクラ",
+    "ホタテ",
+    "ハマチ",
+    "ネギトロ",
+    "カンパチ",
+    "ブリ",
+  ];
+  return sushiNames[Math.floor(Math.random() * sushiNames.length)];
+}
+
+function leaveRoom() {
+  send({ type: "leave_room" });
+  state.roomJoined = false;
+  state.appMode = "setup";
+  state.isWaiting = false;
+  state.pendingFlow = null;
+  state.hand = [];
+  state.currentTurn = "";
+  clearSelection();
+  renderAll();
+}
+
+function toggleReady() {
+  state.isWaiting = !state.isWaiting;
+  send({ type: "change_status", status: state.isWaiting ? "waiting" : "watching" });
+  if (!state.isWaiting) {
+    state.hand = [];
+    clearSelection();
+  }
+  renderAll();
+}
+
+function addCpu() {
+  const profiles = state.roomCpuProfiles[CONFIG.roomId] || [];
+  send({ type: "add_cpu", cpu_key: profiles[0]?.key || "basic" });
+}
+
+function startGame() {
+  send({ type: "start_game" });
+}
+
+function loadSample() {
+  const selected = el.sampleSelect.value || CONFIG.defaultSampleKey;
+  send({ type: "load_sample_registered_primes", sample_key: selected });
+  el.registerStatus.textContent = "サンプル読み込み中...";
+}
+
+function saveRegisteredNumbers() {
+  send({
+    type: "set_registered_numbers",
+    prime_text: el.primeText.value,
+    composite_text: el.compositeText.value,
+  });
+  el.registerStatus.textContent = "登録中...";
+}
+
+function renderRegisteredStatus(msg) {
+  if (msg.sample_key) el.sampleSelect.value = msg.sample_key;
+  if (msg.sample_prime_text) el.primeText.value = msg.sample_prime_text;
+  if (msg.sample_composite_text) el.compositeText.value = msg.sample_composite_text;
+  const primeCount = msg.prime_count ?? msg.count ?? 0;
+  const compositeCount = msg.composite_count ?? 0;
+  const errorCount = (msg.prime_errors || msg.errors || []).length + (msg.composite_errors || []).length;
+  el.registerStatus.textContent = errorCount
+    ? `素数 ${primeCount} / 合成数 ${compositeCount} / エラー ${errorCount}`
+    : `素数 ${primeCount} / 合成数 ${compositeCount}`;
+  scheduleAssist();
+}
+
+function renderSampleOptions() {
+  const current = el.sampleSelect.value || CONFIG.defaultSampleKey;
+  el.sampleSelect.innerHTML = "";
+  state.sampleOptions.forEach((option) => {
+    const opt = document.createElement("option");
+    opt.value = option.key;
+    opt.textContent = readableSampleLabel(option);
+    el.sampleSelect.appendChild(opt);
+  });
+  if ([...el.sampleSelect.options].some((option) => option.value === current)) {
+    el.sampleSelect.value = current;
+  }
+}
+
+function readableSampleLabel(option) {
+  const labels = {
+    sashimi2024: "おすすめセット",
+    tournament_order: "大会風セット",
+    gold_prime_table: "ゴールド素数表",
+    silver_prime_table: "シルバー素数表",
+  };
+  return labels[option.key] || option.label || option.key;
+}
+
+function renderPlayers(players, waitingCount) {
+  const parts = players.map((player) => {
+    const mine = player.id === state.playerId ? "自分" : "";
+    const cpu = player.is_cpu ? "CPU" : "";
+    const ready = player.status === "waiting" ? "参加中" : "観戦";
+    return [player.name, mine, cpu, ready].filter(Boolean).join(" / ");
+  });
+  el.playerList.textContent = parts.length ? parts.join("、") : "まだ誰もいません";
+  if (waitingCount !== null) {
+    const canStart = state.isWaiting && (waitingCount === 1 || waitingCount === 2);
+    el.startBtn.disabled = !canStart;
+  }
+}
+
+function renderField(msg) {
+  el.deckCount.textContent = String(msg.deck_count ?? "-");
+  const field = msg.field || [];
+  el.fieldCards.innerHTML = "";
+  if (!field.length) {
+    el.fieldCards.textContent = "まだ何も出ていません";
+    el.fieldCards.classList.add("empty");
+  } else {
+    el.fieldCards.classList.remove("empty");
+    field.forEach((card) => el.fieldCards.appendChild(cardButton(card, { staticOnly: true, field: true })));
+  }
+  const countText = (msg.hand_counts || [])
+    .map((item) => `${item.name}: ${item.count}`)
+    .join(" / ");
+  if (countText) el.myHandCount.title = countText;
+  renderOpponentCounts(msg.hand_counts || []);
+}
+
+function renderOpponentCounts(handCounts) {
+  const opponents = handCounts.filter((item) => item.name !== state.playerName);
+  if (!opponents.length) {
+    el.opponentCounts.textContent = "-";
+    el.opponentCounts.title = "";
+    return;
+  }
+  el.opponentCounts.textContent = opponents.map((item) => item.count).join("/");
+  el.opponentCounts.title = opponents.map((item) => `${item.name}: ${item.count}`).join(" / ");
+}
+
+function renderAll() {
+  document.body.dataset.mode = state.appMode;
+  el.setupPanel.classList.toggle("hidden", state.appMode !== "setup");
+  el.roomPanel.classList.toggle("hidden", state.appMode === "setup");
+  el.playStatus.textContent = state.isWaiting
+    ? state.roomState === "playing"
+      ? "対戦中"
+      : "対戦待ち"
+    : "観戦中";
+  el.turnLabel.textContent = state.currentTurn || "未開始";
+  el.readyBtn.textContent = state.isWaiting ? "観戦に戻る" : "対戦に参加";
+  el.addCpuBtn.disabled = state.roomState === "playing" || state.currentRoomHasCpu;
+  el.startBtn.disabled = state.roomState === "playing" || !state.isWaiting;
+  el.playBtn.disabled = !isMyTurn() || !state.selectedCards.length || (state.compositeMode && !state.compositeTokens.length);
+  el.compositeModeBtn.disabled = state.roomState !== "playing" || !state.hand.length;
+  el.compositeModeBtn.textContent = "合成数出し";
+  el.compositeModeBtn.classList.toggle("hidden", state.compositeMode);
+  el.drawBtn.disabled = !isMyTurn();
+  el.passBtn.disabled = !isMyTurn();
+  el.turnBadge.textContent = isMyTurn() ? "あなたの番" : state.roomState === "playing" ? "相手の番" : "待機中";
+  el.turnBadge.classList.toggle("ready", isMyTurn());
+  el.turnBadge.classList.toggle("alert", state.roomState === "playing" && !isMyTurn());
+  el.myHandCount.textContent = String(state.hand.length);
+  renderNextHint();
+  renderHand();
+  renderSelection();
+  renderCompositeZone();
+  renderAssist();
+}
+
+function renderNextHint() {
+  if (!state.roomJoined) {
+    el.nextHint.textContent = "まず入室します。入室後に対戦参加、CPU追加、開始を選べます。";
+    return;
+  }
+  if (state.roomState !== "playing") {
+    if (!state.isWaiting) {
+      el.nextHint.textContent = "観戦中です。遊ぶ場合は「対戦に参加」を押してください。";
+    } else if (!state.currentRoomHasCpu) {
+      el.nextHint.textContent = "一人で試すならCPUを追加できます。友だちを待つ場合はこのままでOKです。";
+    } else {
+      el.nextHint.textContent = "準備OKです。「開始」を押すと練習対戦が始まります。";
+    }
+    return;
+  }
+  if (isMyTurn()) {
+    el.nextHint.textContent = state.lastAssistCandidates.length
+      ? "おすすめ候補を押すと、出すカードが自動で選ばれます。"
+      : "候補がない場合はドローかパスを試してください。";
+  } else {
+    el.nextHint.textContent = "相手の番です。場と手札を見ながら次の候補を待ちましょう。";
+  }
+}
+
+function renderHand() {
+  el.handCards.innerHTML = "";
+  if (!state.hand.length) {
+    setCardRowColumns(el.handCards, 1);
+    el.handCards.textContent = state.roomState === "playing" ? "手札を待っています" : "ゲーム開始後に表示されます";
+    el.handCards.classList.add("empty-row");
+    return;
+  }
+  const selectedIds = new Set(state.selectedCards.map((card) => card.card_id));
+  const compositeIds = new Set(state.compositeTokens.filter((token) => token.kind === "card").map((token) => token.card_id));
+  const visibleHand = state.hand.filter((card) => !selectedIds.has(card.card_id) && !compositeIds.has(card.card_id));
+  if (!visibleHand.length) {
+    setCardRowColumns(el.handCards, 1);
+    el.handCards.textContent = "すべて選択中または材料中";
+    el.handCards.classList.add("empty-row");
+    return;
+  }
+  setCardRowColumns(el.handCards, visibleHand.length);
+  el.handCards.classList.remove("empty-row");
+  visibleHand.forEach((card) => {
+    const btn = cardButton(card);
+    btn.addEventListener("click", () => toggleCard(card, "hand"));
+    el.handCards.appendChild(btn);
+  });
+}
+
+function renderSelection() {
+  el.selectedCards.innerHTML = "";
+  if (!state.selectedCards.length) {
+    setCardRowColumns(el.selectedCards, 1);
+    el.selectedCards.textContent = "未選択";
+    el.selectedCards.classList.add("empty-row");
+    el.selectedTitle.textContent = "カードを選んでください";
+  } else {
+    setCardRowColumns(el.selectedCards, state.selectedCards.length);
+    el.selectedCards.classList.remove("empty-row");
+    state.selectedCards.forEach((card) => {
+      const btn = cardButton(card);
+      btn.classList.add("selected");
+      btn.addEventListener("click", () => toggleCard(card, "selected"));
+      el.selectedCards.appendChild(btn);
+    });
+    const number = selectedNumberText();
+    el.selectedTitle.textContent = number ? `${number} を出す準備中` : "ジョーカーの値を選んでください";
+  }
+  renderJokerControls();
+}
+
+function setCardRowColumns(container, count) {
+  const cardCount = Math.max(1, count || 1);
+  const columns = Math.min(18, cardCount);
+  const styles = getComputedStyle(container);
+  const cardWidth = parseFloat(styles.getPropertyValue("--card-width")) || 52;
+  const configuredGap = parseFloat(styles.getPropertyValue("--card-gap")) || 0;
+  const availableWidth = container.clientWidth || 0;
+  const fullWidth = cardCount * cardWidth + Math.max(0, cardCount - 1) * configuredGap;
+
+  if (availableWidth > 0 && fullWidth <= availableWidth) {
+    container.style.gridTemplateColumns = `repeat(${cardCount}, var(--card-width))`;
+    container.style.columnGap = "var(--card-gap)";
+    return;
+  }
+
+  const overlapStep = columns > 1
+    ? Math.max(1, (availableWidth - cardWidth) / (columns - 1))
+    : cardWidth;
+  container.style.gridTemplateColumns = `repeat(${columns}, ${overlapStep}px)`;
+  container.style.columnGap = "0px";
+}
+
+function renderJokerControls() {
+  el.jokerControls.innerHTML = "";
+  const jokers = state.selectedCards.filter(isJoker);
+  jokers.forEach((_, index) => {
+    const label = document.createElement("label");
+    label.textContent = `ジョーカー${index + 1}`;
+    const select = document.createElement("select");
+    ["inf", ...Array.from({ length: 14 }, (_, i) => String(i))].forEach((value) => {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = value === "inf" ? "∞" : value;
+      select.appendChild(option);
+    });
+    select.value = state.jokerAssignedRanks[index] ?? "inf";
+    select.addEventListener("change", () => {
+      state.jokerAssignedRanks[index] = select.value;
+      renderSelection();
+      scheduleAssist();
+    });
+    label.appendChild(select);
+    el.jokerControls.appendChild(label);
+  });
+}
+
+function renderCompositeZone() {
+  el.compositePanel.classList.toggle("hidden", !state.compositeMode);
+  el.compositeCards.innerHTML = "";
+  el.compositeJokerControls.innerHTML = "";
+  if (!state.compositeMode) return;
+
+  normalizeCompositeJokerRanks();
+  const expression = tokensToText(state.compositeTokens, state.compositeJokerAssign);
+  el.compositeTitle.textContent = `${selectedNumberText() || "?"} = ${expression || "材料未選択"}`;
+  if (!state.compositeTokens.length) {
+    setCardRowColumns(el.compositeCards, 1);
+    el.compositeCards.textContent = "手札から材料札を選んでください";
+    el.compositeCards.classList.add("empty-row");
+  } else {
+    setCardRowColumns(el.compositeCards, state.compositeTokens.length);
+    el.compositeCards.classList.remove("empty-row");
+    state.compositeTokens.forEach((token, index) => {
+      if (token.kind === "op") {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "operator-token";
+        btn.textContent = token.op;
+        btn.title = "クリックで削除";
+        btn.addEventListener("click", () => removeCompositeToken(index));
+        el.compositeCards.appendChild(btn);
+        return;
+      }
+
+      const card = cardForToken(token);
+      const btn = cardButton(card);
+      btn.classList.add("selected");
+      btn.title = "クリックで材料から外す";
+      btn.addEventListener("click", () => removeCompositeToken(index));
+      el.compositeCards.appendChild(btn);
+    });
+  }
+
+  renderCompositeJokerControls();
+}
+
+function renderCompositeJokerControls() {
+  const jokers = state.compositeTokens
+    .filter((token) => token.kind === "card")
+    .map(cardForToken)
+    .filter(isJoker);
+  normalizeCompositeJokerRanks();
+  jokers.forEach((_, index) => {
+    const label = document.createElement("label");
+    label.textContent = `式ジョーカー${index + 1}`;
+    const select = document.createElement("select");
+    ["inf", ...Array.from({ length: 14 }, (_, i) => String(i))].forEach((value) => {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = value === "inf" ? "∞" : value;
+      select.appendChild(option);
+    });
+    select.value = state.compositeJokerAssign[index] ?? "inf";
+    select.addEventListener("change", () => {
+      state.compositeJokerAssign[index] = select.value;
+      renderCompositeZone();
+    });
+    label.appendChild(select);
+    el.compositeJokerControls.appendChild(label);
+  });
+}
+
+function renderAssist() {
+  el.assistStrongBtn.classList.toggle("active", state.assistFilters.order === "strong");
+  el.assistEasyBtn.classList.toggle("active", state.assistFilters.order === "weak");
+  el.assistManyBtn.classList.toggle("active", state.assistFilters.limit_mode === "fifty");
+  el.assistList.innerHTML = "";
+  if (state.roomState !== "playing" || !state.hand.length) {
+    el.assistList.textContent = "ゲームが始まると、ここに「押せば選べる」候補が出ます。";
+    el.assistList.classList.add("empty");
+    return;
+  }
+  if (!state.lastAssistCandidates.length) {
+    el.assistList.textContent = "今すぐ出せる候補が見つかりません。ドローかパスを試してください。";
+    el.assistList.classList.add("empty");
+    return;
+  }
+  el.assistList.classList.remove("empty");
+  state.lastAssistCandidates.forEach((candidate, index) => {
+    const btn = document.createElement("button");
+    btn.className = "assist-card";
+    btn.type = "button";
+    btn.innerHTML = "";
+    const kind = document.createElement("span");
+    kind.className = "assist-kind";
+    kind.textContent = candidate.kind === "composite" ? "合成数出し" : "登録素数";
+    const number = document.createElement("span");
+    number.className = "assist-number";
+    number.textContent = candidate.visible_text || candidate.number || assistCardsText(candidate.cards, candidate.assigned_numbers);
+    const detail = document.createElement("span");
+    detail.className = "assist-detail";
+    detail.textContent = assistDetail(candidate, index);
+    btn.append(kind, number, detail);
+    btn.addEventListener("click", () => applyAssistCandidate(candidate));
+    el.assistList.appendChild(btn);
+  });
+}
+
+function assistDetail(candidate, index) {
+  const count = (candidate.cards || []).length;
+  const field = candidate.field_count_match === false ? "枚数注意" : "今出せる";
+  const material = candidate.material_text ? ` / 材料 ${candidate.material_text}` : "";
+  return `候補${index + 1} / ${count}枚 / ${field}${material}`;
+}
+
+function renderAssist() {
+  el.assistStrongBtn.classList.toggle("active", state.assistFilters.order === "strong");
+  el.assistEasyBtn.classList.toggle("active", state.assistFilters.order === "weak");
+  el.assistManyBtn.classList.toggle("active", state.assistFilters.limit_mode === "fifty");
+  el.assistList.innerHTML = "";
+  if (state.roomState !== "playing" || !state.hand.length) {
+    el.assistList.textContent = "ゲーム開始後に候補が出ます";
+    el.assistList.classList.add("empty");
+    return;
+  }
+  if (!state.lastAssistCandidates.length) {
+    el.assistList.textContent = "候補なし";
+    el.assistList.classList.add("empty");
+    return;
+  }
+  el.assistList.classList.remove("empty");
+  state.lastAssistCandidates.forEach((candidate, index) => {
+    const btn = document.createElement("button");
+    btn.className = "assist-card";
+    if (candidate.recommended) {
+      btn.classList.add("recommended");
+    }
+    btn.type = "button";
+
+    const number = document.createElement("span");
+    number.className = "assist-number";
+    number.textContent = candidate.visible_text || candidate.number || assistCardsText(candidate.cards, candidate.assigned_numbers);
+    btn.appendChild(number);
+
+    const tags = assistTags(candidate);
+    if (tags.length) {
+      const tagRow = document.createElement("span");
+      tagRow.className = "assist-tags";
+      tags.forEach((label) => {
+        const tag = document.createElement("span");
+        tag.className = "assist-tag";
+        tag.textContent = label;
+        tagRow.appendChild(tag);
+      });
+      btn.appendChild(tagRow);
+    }
+
+    btn.addEventListener("click", () => applyAssistCandidate(candidate));
+    el.assistList.appendChild(btn);
+  });
+}
+
+function assistTags(candidate) {
+  const tags = [];
+  if (candidate.kind === "composite") tags.push("合成");
+  if (candidate.field_count_match === false) tags.push("枚数注意");
+  if (candidate.finishes_hand) tags.push("上がり");
+  if (candidate.trump) tags.push("切り札");
+  return tags;
+}
+
+function toggleCard(card, source = "hand") {
+  if (state.compositeMode && source === "hand") {
+    addCompositeCard(card);
+    return;
+  }
+  const index = state.selectedCards.findIndex((item) => item.card_id === card.card_id);
+  if (index >= 0) {
+    state.selectedCards.splice(index, 1);
+  } else {
+    state.selectedCards.push(card);
+  }
+  normalizeJokerRanks();
+  renderAll();
+  scheduleAssist();
+}
+
+function toggleCompositeMode() {
+  if (state.compositeMode) {
+    clearCompositeMode();
+  } else {
+    state.compositeMode = true;
+    state.compositeTokens = [];
+    state.compositeJokerAssign = [];
+  }
+  renderAll();
+}
+
+function addCompositeCard(card) {
+  removeCompositeCard(card.card_id);
+  state.selectedCards = state.selectedCards.filter((item) => item.card_id !== card.card_id);
+  state.compositeTokens.push({ kind: "card", card_id: card.card_id });
+  normalizeJokerRanks();
+  normalizeCompositeJokerRanks();
+  renderAll();
+  scheduleAssist();
+}
+
+function addCompositeOp(op) {
+  if (!state.compositeMode) return;
+  const last = state.compositeTokens[state.compositeTokens.length - 1];
+  if (!last || last.kind !== "card") return;
+  state.compositeTokens.push({ kind: "op", op });
+  renderAll();
+}
+
+function removeCompositeToken(index) {
+  state.compositeTokens.splice(index, 1);
+  normalizeCompositeJokerRanks();
+  renderAll();
+}
+
+function removeCompositeCard(cardId) {
+  const index = state.compositeTokens.findIndex((token) => token.kind === "card" && token.card_id === cardId);
+  if (index >= 0) state.compositeTokens.splice(index, 1);
+}
+
+function applyAssistCandidate(candidate) {
+  const handById = new Map(state.hand.map((card) => [card.card_id, card]));
+  state.selectedCards = (candidate.cards || []).map((card) => handById.get(card.card_id)).filter(Boolean);
+  state.jokerAssignedRanks = (candidate.assigned_numbers || []).map(String);
+  if (candidate.kind === "composite") {
+    state.compositeMode = true;
+    state.compositeTokens = ((candidate.composite && candidate.composite.tokens) || []).map((token) => ({ ...token }));
+    state.compositeJokerAssign = ((candidate.composite && candidate.composite.assigned_numbers) || []).map(String);
+  } else {
+    clearCompositeMode();
+  }
+  normalizeJokerRanks();
+  normalizeCompositeJokerRanks();
+  renderAll();
+}
+
+function clearSelection() {
+  state.selectedCards = [];
+  state.jokerAssignedRanks = [];
+  clearCompositeMode();
+  renderAll();
+  scheduleAssist();
+}
+
+function clearCompositeMode() {
+  state.compositeMode = false;
+  state.compositeTokens = [];
+  state.compositeJokerAssign = [];
+}
+
+function normalizeJokerRanks() {
+  const count = state.selectedCards.filter(isJoker).length;
+  state.jokerAssignedRanks = state.jokerAssignedRanks.slice(0, count);
+  while (state.jokerAssignedRanks.length < count) state.jokerAssignedRanks.push("inf");
+}
+
+function normalizeCompositeJokerRanks() {
+  const count = state.compositeTokens
+    .filter((token) => token.kind === "card")
+    .map(cardForToken)
+    .filter(isJoker).length;
+  state.compositeJokerAssign = state.compositeJokerAssign.slice(0, count);
+  while (state.compositeJokerAssign.length < count) state.compositeJokerAssign.push("inf");
+}
+
+function cardForToken(token) {
+  return state.hand.find((card) => card.card_id === token.card_id) || token;
+}
+
+function selectedNumberText() {
+  if (!state.selectedCards.length) return "";
+  const parts = [];
+  let jokerIndex = 0;
+  for (const card of state.selectedCards) {
+    if (isJoker(card)) {
+      const value = state.jokerAssignedRanks[jokerIndex++] ?? "inf";
+      if (value === "inf") return "";
+      parts.push(value);
+    } else {
+      parts.push(String(card.rank));
+    }
+  }
+  const text = parts.join("");
+  return text.startsWith("0") ? "" : text;
+}
+
+function playSelected() {
+  if (!state.selectedCards.length) return;
+  if (state.compositeMode) {
+    const lastToken = state.compositeTokens[state.compositeTokens.length - 1];
+    if (!lastToken || lastToken.kind !== "card") {
+      log("error", "合成数出しゾーンに材料札で終わる式を作ってください。");
+      return;
+    }
+    if (!selectedNumberText() || state.jokerAssignedRanks.some((value) => String(value) === "inf")) {
+      log("error", "合成数出しでは、選択中のジョーカー値を数字にしてください。");
+      return;
+    }
+    if (state.compositeJokerAssign.some((value) => String(value) === "inf")) {
+      log("error", "合成数出しゾーンのジョーカー値を数字にしてください。");
+      return;
+    }
+    send({
+      type: "play_card",
+      mode: "composite",
+      selected: {
+        cards: state.selectedCards,
+        assigned_numbers: state.jokerAssignedRanks,
+      },
+      consume: {
+        cards: compositeConsumeCards(),
+      },
+      composite: {
+        tokens: state.compositeTokens,
+        assigned_numbers: state.compositeJokerAssign,
+      },
+    });
+  } else {
+    send({
+      type: "play_card",
+      cards: state.selectedCards,
+      assigned_numbers: state.jokerAssignedRanks,
+    });
+  }
+  clearSelection();
+}
+
+function compositeConsumeCards() {
+  const handById = new Map(state.hand.map((card) => [card.card_id, card]));
+  return state.compositeTokens
+    .filter((token) => token.kind === "card")
+    .map((token) => handById.get(token.card_id))
+    .filter(Boolean);
+}
+
+function scheduleAssist() {
+  if (state.assistTimer) clearTimeout(state.assistTimer);
+  state.assistTimer = setTimeout(requestAssist, 220);
+}
+
+function requestAssist() {
+  state.assistTimer = null;
+  if (state.roomState !== "playing" || !state.hand.length || !state.roomJoined) return;
+  send({
+    type: "get_prime_assist",
+    selected_card_ids: state.selectedCards.map((card) => card.card_id),
+    composite_card_ids: state.compositeTokens
+      .filter((token) => token.kind === "card")
+      .map((token) => token.card_id),
+    filters: state.assistFilters,
+    limit: state.assistFilters.limit_mode === "fifty" ? 50 : 10,
+  });
+}
+
+function setAssistOrder(order) {
+  state.assistFilters.order = order;
+  scheduleAssist();
+  renderAssist();
+}
+
+function toggleAssistLimit() {
+  state.assistFilters.limit_mode = state.assistFilters.limit_mode === "fifty" ? "ten" : "fifty";
+  scheduleAssist();
+  renderAssist();
+}
+
+function cardButton(card, options = {}) {
+  const btn = document.createElement(options.staticOnly ? "div" : "button");
+  btn.className = `playing-card ${isRedSuit(card.suit) ? "red" : ""}`;
+  if (options.field) btn.classList.add("field-card");
+  if (!options.staticOnly) btn.type = "button";
+  const suit = document.createElement("span");
+  suit.className = "suit";
+  suit.textContent = suitLabel(card);
+  const rank = document.createElement("span");
+  rank.className = "rank";
+  rank.textContent = rankLabel(card);
+  btn.append(suit, rank);
+  btn.title = card.card_id || "";
+  return btn;
+}
+
+function suitLabel(card) {
+  if (isJoker(card)) return "☆";
+  return { H: "♥", D: "♦", S: "♠", C: "♣" }[card.suit] || card.suit || "";
+}
+
+function rankLabel(card) {
+  if (isJoker(card)) return "X";
+  return { 1: "A", 10: "T", 11: "J", 12: "Q", 13: "K" }[Number(card.rank)] || String(card.rank);
+}
+
+function isJoker(card) {
+  return card?.is_joker || card?.suit === "X";
+}
+
+function isRedSuit(suit) {
+  return suit === "H" || suit === "D";
+}
+
+function assistCardsText(cards = [], assigned = []) {
+  let jokerIndex = 0;
+  return cards
+    .map((card) => {
+      if (!isJoker(card)) return rankLabel(card);
+      const value = assigned[jokerIndex++] ?? "?";
+      return value === "inf" ? "X" : `X=${value}`;
+    })
+    .join("");
+}
+
+function tokensToText(tokens = [], assigned = []) {
+  const handById = new Map(state.hand.map((card) => [card.card_id, card]));
+  let jokerIndex = 0;
+  return tokens
+    .map((token) => {
+      if (token.kind === "op") return token.op === "*" ? "×" : token.op;
+      const card = handById.get(token.card_id) || token;
+      if (!isJoker(card)) return rankLabel(card);
+      const value = assigned[jokerIndex++] ?? "?";
+      return `X=${value}`;
+    })
+    .join(" ");
+}
+
+function isMyTurn() {
+  return Boolean(state.currentTurn && state.playerName && state.currentTurn === state.playerName && state.roomState === "playing");
+}
+
+function sendChat() {
+  const message = el.chatInput.value.trim();
+  if (!message) return;
+  send({ type: "chat", message });
+  el.chatInput.value = "";
+}
+
+function send(payload) {
+  if (!state.ws || state.ws.readyState !== WebSocket.OPEN) {
+    log("error", "まだサーバーに接続できていません。");
+    return;
+  }
+  state.ws.send(JSON.stringify(payload));
+}
+
+function setConnection(kind, label, detail) {
+  el.connectionDot.className = "dot";
+  if (kind === "online") el.connectionDot.classList.add("online");
+  if (kind === "error") el.connectionDot.classList.add("error");
+  el.connectionLabel.textContent = label;
+  el.serverLabel.textContent = detail;
+}
+
+function log(sender, message) {
+  const line = document.createElement("div");
+  line.className = "log-line";
+  const strong = document.createElement("strong");
+  strong.textContent = sender;
+  line.append(strong, document.createTextNode(`: ${message}`));
+  el.logBox.prepend(line);
+}
