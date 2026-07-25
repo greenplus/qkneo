@@ -1,6 +1,24 @@
 const CONFIG = {
   wsUrl: new URLSearchParams(location.search).get("ws") || "wss://web-production-c8e68.up.railway.app/ws",
-  roomId: "room_14",
+  defaultRoomKey: "beginner",
+  rooms: {
+    beginner: {
+      roomId: "room_16",
+      label: "初級",
+      title: "7枚 偶数半減",
+      summary: "ペナルティ1枚 / アシストあり",
+      roomHeading: "初級ルーム",
+      badge: "7枚・偶数半減・ペナ1",
+    },
+    advanced: {
+      roomId: "room_14",
+      label: "上級",
+      title: "NEO 登録制限",
+      summary: "11枚 / 登録制限あり / アシストあり",
+      roomHeading: "NEOルーム",
+      badge: "NEO 制限あり・アシストあり",
+    },
+  },
   defaultSampleKey: "sashimi2024",
 };
 
@@ -12,13 +30,24 @@ const state = {
   roomJoined: false,
   appMode: "setup",
   roomState: "waiting",
+  selectedRoomKey: CONFIG.defaultRoomKey,
   isWaiting: false,
   currentTurn: "",
   roomCounts: {},
+  roomCountsLoaded: false,
   roomRules: {},
   roomCpuProfiles: {},
+  roomHnpChallengeEnabled: {},
+  players: [],
   currentRoomHasCpu: false,
+  hnpChallengeEnabled: false,
+  registeredPrimeValues: new Set(),
   sampleOptions: [],
+  deckCount: "-",
+  fieldCards: [],
+  handCounts: [],
+  flowPreviewCards: [],
+  flowPreviewTimer: null,
   hand: [],
   selectedCards: [],
   jokerAssignedRanks: [],
@@ -58,12 +87,17 @@ function bindElements() {
     "serverLabel",
     "setupPanel",
     "roomPanel",
+    "registerPanel",
     "nameInput",
     "randomNameBtn",
+    "roomBeginnerBtn",
+    "roomAdvancedBtn",
     "practiceBtn",
     "friendBtn",
     "watchBtn",
     "leaveBtn",
+    "roomBadge",
+    "roomHeading",
     "nextHint",
     "playStatus",
     "playerList",
@@ -112,7 +146,9 @@ function bindElements() {
 
 function bindEvents() {
   el.randomNameBtn.addEventListener("click", setRandomName);
-  el.practiceBtn.addEventListener("click", () => startFlow("watch"));
+  el.roomBeginnerBtn.addEventListener("click", () => selectRoom("beginner"));
+  el.roomAdvancedBtn.addEventListener("click", () => selectRoom("advanced"));
+  el.practiceBtn.addEventListener("click", () => startFlow("practice"));
   el.friendBtn.addEventListener("click", () => startFlow("friend"));
   el.watchBtn.addEventListener("click", () => startFlow("watch"));
   el.leaveBtn.addEventListener("click", leaveRoom);
@@ -141,13 +177,35 @@ function bindEvents() {
   el.assistManyBtn.addEventListener("click", toggleAssistLimit);
 }
 
+function currentRoomOption() {
+  return CONFIG.rooms[state.selectedRoomKey] || CONFIG.rooms[CONFIG.defaultRoomKey];
+}
+
+function currentRoomId() {
+  return currentRoomOption().roomId;
+}
+
+function selectRoom(roomKey) {
+  if (state.roomJoined || !CONFIG.rooms[roomKey] || !isRoomAvailable(roomKey)) return;
+  state.selectedRoomKey = roomKey;
+  state.hnpChallengeEnabled = !!state.roomHnpChallengeEnabled[currentRoomId()];
+  state.currentRoomHasCpu = false;
+  renderRoomChoice();
+  renderAll();
+}
+
+function isRoomAvailable(roomKey) {
+  if (!state.roomCountsLoaded) return true;
+  return Object.prototype.hasOwnProperty.call(state.roomCounts, CONFIG.rooms[roomKey].roomId);
+}
+
 function connect() {
   setConnection("connecting", "接続中", CONFIG.wsUrl);
   state.ws = new WebSocket(CONFIG.wsUrl);
 
   state.ws.addEventListener("open", () => {
     state.connected = true;
-    setConnection("online", "接続済み", "既存サーバー / room_14 を使います");
+    setConnection("online", "接続済み", `既存サーバー / ${currentRoomId()} を使います`);
     send({ type: "get_room_counts" });
   });
 
@@ -175,8 +233,14 @@ function handleMessage(msg) {
       break;
     case "room_counts":
       state.roomCounts = msg.counts || {};
+      state.roomCountsLoaded = true;
       state.roomRules = msg.rules || {};
       state.roomCpuProfiles = msg.cpu_profiles || {};
+      state.roomHnpChallengeEnabled = msg.hnp_challenge_enabled || {};
+      if (!isRoomAvailable(state.selectedRoomKey) && isRoomAvailable("advanced")) {
+        state.selectedRoomKey = "advanced";
+      }
+      state.hnpChallengeEnabled = !!state.roomHnpChallengeEnabled[currentRoomId()];
       state.sampleOptions = msg.registered_sample_options || [];
       renderSampleOptions();
       break;
@@ -187,13 +251,15 @@ function handleMessage(msg) {
       state.roomJoined = true;
       state.roomState = msg.room_state || "waiting";
       state.appMode = msg.room_state === "playing" ? "playing" : "room";
+      if (typeof msg.hnp_challenge_enabled === "boolean") state.hnpChallengeEnabled = msg.hnp_challenge_enabled;
       continuePendingFlowAfterJoin();
       break;
     case "update_room_status":
-      if (msg.room_id === CONFIG.roomId) {
-        state.roomCounts[CONFIG.roomId] = msg.count;
+      if (msg.room_id === currentRoomId()) {
+        state.roomCounts[currentRoomId()] = msg.count;
         state.currentRoomHasCpu = (msg.player_list || []).some((player) => player.is_cpu);
-        state.roomCpuProfiles[CONFIG.roomId] = msg.cpu_profiles || state.roomCpuProfiles[CONFIG.roomId] || [];
+        state.roomCpuProfiles[currentRoomId()] = msg.cpu_profiles || state.roomCpuProfiles[currentRoomId()] || [];
+        if (typeof msg.hnp_challenge_enabled === "boolean") state.hnpChallengeEnabled = msg.hnp_challenge_enabled;
         renderPlayers(msg.player_list || [], msg.waiting_count || 0);
         continuePendingFlowAfterCpuStatus();
       }
@@ -207,6 +273,8 @@ function handleMessage(msg) {
     case "game_start":
       state.appMode = "playing";
       state.roomState = "playing";
+      if (typeof msg.hnp_challenge_enabled === "boolean") state.hnpChallengeEnabled = msg.hnp_challenge_enabled;
+      clearFlowPreview(false);
       clearSelection();
       log("system", "ゲームが始まりました。アシスト候補から選んでみましょう。");
       break;
@@ -225,6 +293,7 @@ function handleMessage(msg) {
       state.roomState = msg.state || state.roomState;
       state.currentTurn = msg.current_turn || "";
       state.currentRoomHasCpu = (msg.player_list || []).some((player) => player.is_cpu);
+      if (typeof msg.hnp_challenge_enabled === "boolean") state.hnpChallengeEnabled = msg.hnp_challenge_enabled;
       renderField(msg);
       renderPlayers(msg.player_list || [], null);
       scheduleAssist();
@@ -241,6 +310,10 @@ function handleMessage(msg) {
     case "action_result":
       if (msg.action === "pass") log("system", "パスしました。");
       if (msg.action === "play_card") log("system", "カードが出されました。");
+      if (msg.action === "field_flow") {
+        showFlowPreview(msg.played_cards || []);
+        log("system", msg.number === "X" ? "ジョーカーで場が流れました。" : `${msg.number || "カード"}で場が流れました。`);
+      }
       break;
     case "penalty":
       log("system", "ペナルティが発生しました。");
@@ -249,6 +322,7 @@ function handleMessage(msg) {
       state.roomState = msg.state || "waiting";
       state.appMode = "room";
       state.hand = [];
+      clearFlowPreview(false);
       clearSelection();
       log("system", `${msg.winner || "勝者"} が勝利しました。`);
       break;
@@ -266,6 +340,11 @@ function handleMessage(msg) {
 }
 
 function startFlow(flow) {
+  if (!isRoomAvailable(state.selectedRoomKey)) {
+    log("error", `${currentRoomId()} は接続先サーバーにまだありません。サーバー反映後に選べます。`);
+    renderAll();
+    return;
+  }
   ensureName();
   state.pendingFlow = flow;
   state.sampleLoadedForFlow = false;
@@ -273,7 +352,7 @@ function startFlow(flow) {
   state.startRequestedForFlow = false;
   state.appMode = "room";
   send({ type: "set_name", name: state.playerName });
-  send({ type: "join_room", room_id: CONFIG.roomId });
+  send({ type: "join_room", room_id: currentRoomId() });
   renderAll();
 }
 
@@ -353,6 +432,9 @@ function leaveRoom() {
   state.pendingFlow = null;
   state.hand = [];
   state.currentTurn = "";
+  state.fieldCards = [];
+  state.handCounts = [];
+  clearFlowPreview(false);
   clearSelection();
   renderAll();
 }
@@ -368,7 +450,7 @@ function toggleReady() {
 }
 
 function addCpu() {
-  const profiles = state.roomCpuProfiles[CONFIG.roomId] || [];
+  const profiles = state.roomCpuProfiles[currentRoomId()] || [];
   send({ type: "add_cpu", cpu_key: profiles[0]?.key || "basic" });
 }
 
@@ -395,12 +477,14 @@ function renderRegisteredStatus(msg) {
   if (msg.sample_key) el.sampleSelect.value = msg.sample_key;
   if (msg.sample_prime_text) el.primeText.value = msg.sample_prime_text;
   if (msg.sample_composite_text) el.compositeText.value = msg.sample_composite_text;
+  rebuildRegisteredPrimeValues();
   const primeCount = msg.prime_count ?? msg.count ?? 0;
   const compositeCount = msg.composite_count ?? 0;
   const errorCount = (msg.prime_errors || msg.errors || []).length + (msg.composite_errors || []).length;
   el.registerStatus.textContent = errorCount
     ? `素数 ${primeCount} / 合成数 ${compositeCount} / エラー ${errorCount}`
     : `素数 ${primeCount} / 合成数 ${compositeCount}`;
+  if (!errorCount && el.registerPanel) el.registerPanel.open = false;
   scheduleAssist();
 }
 
@@ -429,12 +513,8 @@ function readableSampleLabel(option) {
 }
 
 function renderPlayers(players, waitingCount) {
-  const parts = players.map((player) => {
-    const mine = player.id === state.playerId ? "自分" : "";
-    const cpu = player.is_cpu ? "CPU" : "";
-    const ready = player.status === "waiting" ? "参加中" : "観戦";
-    return [player.name, mine, cpu, ready].filter(Boolean).join(" / ");
-  });
+  state.players = players;
+  const parts = players.map(playerListLabel);
   el.playerList.textContent = parts.length ? parts.join("、") : "まだ誰もいません";
   if (waitingCount !== null) {
     const canStart = state.isWaiting && (waitingCount === 1 || waitingCount === 2);
@@ -442,22 +522,67 @@ function renderPlayers(players, waitingCount) {
   }
 }
 
+function playerListLabel(player) {
+  const label = playerLabel(player);
+  if (state.roomState === "playing") return label;
+  return player.status === "waiting" ? label : `${label}(観戦)`;
+}
+
+function playerLabel(player) {
+  if (player.id === state.playerId) return "自分";
+  if (player.is_cpu) return "CPU";
+  return player.name || "相手";
+}
+
+function turnLabel() {
+  if (!state.currentTurn) return "未開始";
+  const player = state.players.find((item) => item.name === state.currentTurn);
+  if (player) return playerLabel(player);
+  return state.currentTurn === state.playerName ? "自分" : state.currentTurn;
+}
+
 function renderField(msg) {
-  el.deckCount.textContent = String(msg.deck_count ?? "-");
-  const field = msg.field || [];
+  state.deckCount = String(msg.deck_count ?? "-");
+  state.fieldCards = msg.field || [];
+  state.handCounts = msg.hand_counts || [];
+  if (state.fieldCards.length) clearFlowPreview(false);
+  el.deckCount.textContent = state.deckCount;
+  renderFieldCards();
+  const countText = state.handCounts
+    .map((item) => `${item.name}: ${item.count}`)
+    .join(" / ");
+  if (countText) el.myHandCount.title = countText;
+  renderOpponentCounts(state.handCounts);
+}
+
+function renderFieldCards() {
+  const field = state.fieldCards.length ? state.fieldCards : state.flowPreviewCards;
+  const isPreview = !state.fieldCards.length && state.flowPreviewCards.length;
   el.fieldCards.innerHTML = "";
   if (!field.length) {
     el.fieldCards.textContent = "まだ何も出ていません";
     el.fieldCards.classList.add("empty");
+    el.fieldCards.classList.remove("flow-preview");
   } else {
     el.fieldCards.classList.remove("empty");
+    el.fieldCards.classList.toggle("flow-preview", isPreview);
     field.forEach((card) => el.fieldCards.appendChild(cardButton(card, { staticOnly: true, field: true })));
   }
-  const countText = (msg.hand_counts || [])
-    .map((item) => `${item.name}: ${item.count}`)
-    .join(" / ");
-  if (countText) el.myHandCount.title = countText;
-  renderOpponentCounts(msg.hand_counts || []);
+}
+
+function showFlowPreview(cards) {
+  if (!cards.length) return;
+  state.flowPreviewCards = cards;
+  if (state.flowPreviewTimer) clearTimeout(state.flowPreviewTimer);
+  renderFieldCards();
+  state.flowPreviewTimer = setTimeout(() => clearFlowPreview(true), 1100);
+}
+
+function clearFlowPreview(shouldRender = true) {
+  if (state.flowPreviewTimer) clearTimeout(state.flowPreviewTimer);
+  state.flowPreviewTimer = null;
+  state.flowPreviewCards = [];
+  if (shouldRender) renderFieldCards();
 }
 
 function renderOpponentCounts(handCounts) {
@@ -475,16 +600,18 @@ function renderAll() {
   document.body.dataset.mode = state.appMode;
   el.setupPanel.classList.toggle("hidden", state.appMode !== "setup");
   el.roomPanel.classList.toggle("hidden", state.appMode === "setup");
+  renderRoomChoice();
   el.playStatus.textContent = state.isWaiting
     ? state.roomState === "playing"
       ? "対戦中"
       : "対戦待ち"
     : "観戦中";
-  el.turnLabel.textContent = state.currentTurn || "未開始";
+  el.turnLabel.textContent = turnLabel();
   el.readyBtn.textContent = state.isWaiting ? "観戦に戻る" : "対戦に参加";
   el.addCpuBtn.disabled = state.roomState === "playing" || state.currentRoomHasCpu;
   el.startBtn.disabled = state.roomState === "playing" || !state.isWaiting;
   el.playBtn.disabled = !isMyTurn() || !state.selectedCards.length || (state.compositeMode && !state.compositeTokens.length);
+  el.playBtn.textContent = isHnpChallengeSelection() ? "HNPチャレンジ" : "出す";
   el.compositeModeBtn.disabled = state.roomState !== "playing" || !state.hand.length;
   el.compositeModeBtn.textContent = "合成数出し";
   el.compositeModeBtn.classList.toggle("hidden", state.compositeMode);
@@ -499,6 +626,31 @@ function renderAll() {
   renderSelection();
   renderCompositeZone();
   renderAssist();
+}
+
+function renderRoomChoice() {
+  const room = currentRoomOption();
+  const roomId = currentRoomId();
+  const ruleLabel = state.roomRules[roomId] || room.summary;
+  const count = state.roomCounts[roomId] ?? 0;
+
+  el.roomBeginnerBtn.classList.toggle("active", state.selectedRoomKey === "beginner");
+  el.roomAdvancedBtn.classList.toggle("active", state.selectedRoomKey === "advanced");
+  el.roomBeginnerBtn.classList.toggle("unavailable", !isRoomAvailable("beginner"));
+  el.roomAdvancedBtn.classList.toggle("unavailable", !isRoomAvailable("advanced"));
+  el.roomBeginnerBtn.disabled = state.roomJoined || !isRoomAvailable("beginner");
+  el.roomAdvancedBtn.disabled = state.roomJoined || !isRoomAvailable("advanced");
+  el.roomBeginnerBtn.setAttribute("aria-pressed", String(state.selectedRoomKey === "beginner"));
+  el.roomAdvancedBtn.setAttribute("aria-pressed", String(state.selectedRoomKey === "advanced"));
+
+  el.practiceBtn.textContent = `${room.label}でCPU練習`;
+  el.friendBtn.textContent = `${room.label}で友だちを待つ`;
+  el.watchBtn.textContent = `${room.label}を観戦`;
+  el.roomBadge.textContent = room.badge;
+  el.roomHeading.textContent = room.roomHeading;
+  if (state.connected && state.appMode === "setup") {
+    el.serverLabel.textContent = `既存サーバー / ${roomId} / ${count}人 / ${ruleLabel}`;
+  }
 }
 
 function renderNextHint() {
@@ -568,7 +720,11 @@ function renderSelection() {
       el.selectedCards.appendChild(btn);
     });
     const number = selectedNumberText();
-    el.selectedTitle.textContent = number ? `${number} を出す準備中` : "ジョーカーの値を選んでください";
+    el.selectedTitle.textContent = number
+      ? isHnpChallengeSelection()
+        ? `${number} からHNPチャレンジ`
+        : `${number} を出す準備中`
+      : "ジョーカーの値を選んでください";
   }
   renderJokerControls();
 }
@@ -904,6 +1060,29 @@ function selectedNumberText() {
   }
   const text = parts.join("");
   return text.startsWith("0") ? "" : text;
+}
+
+function registeredPatternToValue(pattern) {
+  const faceValues = { t: "10", j: "11", q: "12", k: "13" };
+  const text = String(pattern || "").trim().toLowerCase();
+  if (!/^[0-9tjqk]+$/.test(text)) return null;
+  const value = [...text].map((char) => faceValues[char] || char).join("");
+  return !value || value.startsWith("0") ? null : value;
+}
+
+function rebuildRegisteredPrimeValues() {
+  state.registeredPrimeValues = new Set();
+  String(el.primeText.value || "").split(/[\s,、，]+/).forEach((token) => {
+    const value = registeredPatternToValue(token);
+    if (value !== null) state.registeredPrimeValues.add(value);
+  });
+}
+
+function isHnpChallengeSelection() {
+  if (!state.hnpChallengeEnabled || state.compositeMode || state.selectedCards.length < 2) return false;
+  const number = selectedNumberText();
+  if (!number || number === "57" || number === "1729") return false;
+  return !state.registeredPrimeValues.has(number);
 }
 
 function playSelected() {

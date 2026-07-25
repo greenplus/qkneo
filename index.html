@@ -4,13 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>素数大富豪NEO アシスト版</title>
-    <link rel="stylesheet" href="./styles.css?v=neo-20260703-5" />
+    <link rel="stylesheet" href="./styles.css?v=neo-20260725-3" />
   </head>
   <body>
     <main class="app-shell">
       <section id="topBand" class="top-band">
         <div>
-          <p class="eyebrow">room_14 固定プロトタイプ</p>
+          <p class="eyebrow">初級 / 上級 選択プロトタイプ</p>
           <h1>素数大富豪NEO</h1>
           <p class="lead">
             登録済みの数とアシスト候補を使って、素数を知らなくてもまず1手出せる対戦UIです。
@@ -33,8 +33,20 @@
             <input id="nameInput" autocomplete="nickname" placeholder="例: マグロ" />
             <button id="randomNameBtn" class="ghost-button" type="button">おまかせ</button>
           </div>
+          <div class="room-choice" role="group" aria-label="部屋選択">
+            <button id="roomBeginnerBtn" class="room-choice-card active" type="button" aria-pressed="true">
+              <span>初級</span>
+              <strong>7枚 偶数半減</strong>
+              <small>ペナルティ1枚 / アシストあり</small>
+            </button>
+            <button id="roomAdvancedBtn" class="room-choice-card" type="button" aria-pressed="false">
+              <span>上級</span>
+              <strong>NEO 登録制限</strong>
+              <small>11枚 / 登録制限あり / アシストあり</small>
+            </button>
+          </div>
           <div class="action-stack">
-            <button id="practiceBtn" class="primary-button" type="button">room_14 に入室する</button>
+            <button id="practiceBtn" class="primary-button" type="button">初級でCPU練習</button>
             <button id="friendBtn" class="secondary-button setup-shortcut" type="button">友だちと対戦待ちに入る</button>
             <button id="watchBtn" class="ghost-button setup-shortcut" type="button">観戦だけする</button>
           </div>
@@ -63,8 +75,8 @@
           <div class="panel status-panel">
             <div class="room-title-row">
               <div>
-                <p class="eyebrow">NEO 制限あり・アシストあり</p>
-                <h2>練習ルーム</h2>
+                <p id="roomBadge" class="eyebrow">7枚・偶数半減・ペナ1</p>
+                <h2 id="roomHeading">初級ルーム</h2>
               </div>
               <button id="leaveBtn" class="ghost-button compact" type="button">退室</button>
             </div>
@@ -75,7 +87,7 @@
                 <dd id="playStatus">観戦中</dd>
               </div>
               <div>
-                <dt>参加者</dt>
+                <dt>参加</dt>
                 <dd id="playerList">読み込み中</dd>
               </div>
               <div>
@@ -90,7 +102,8 @@
             </div>
           </div>
 
-          <div class="panel register-panel">
+          <details id="registerPanel" class="panel register-panel">
+            <summary>登録リスト</summary>
             <div class="panel-heading-row">
               <h2>登録リスト</h2>
               <button id="sampleBtn" class="ghost-button compact" type="button">サンプル読込</button>
@@ -102,15 +115,11 @@
               <button id="saveRegisterBtn" class="secondary-button" type="button">登録する</button>
               <span id="registerStatus" class="small-status">未登録</span>
             </div>
-          </div>
+          </details>
         </aside>
 
         <section class="game-column">
           <div class="field-strip">
-            <div>
-              <p class="eyebrow">場</p>
-              <div id="fieldCards" class="field-cards">まだ何も出ていません</div>
-            </div>
             <div class="metric">
               <span>山札</span>
               <strong id="deckCount">-</strong>
@@ -122,6 +131,10 @@
             <div class="metric">
               <span>相手</span>
               <strong id="opponentCounts">-</strong>
+            </div>
+            <div class="field-zone">
+              <p class="eyebrow">場</p>
+              <div id="fieldCards" class="field-cards">まだ何も出ていません</div>
             </div>
           </div>
 
@@ -203,6 +216,6 @@
       </section>
     </main>
 
-    <script src="./app.js?v=neo-20260703-5"></script>
+    <script src="./app.js?v=neo-20260725-3"></script>
   </body>
 </html>
