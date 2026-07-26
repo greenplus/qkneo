@@ -125,6 +125,11 @@ h2 {
   font-size: 0.86rem;
 }
 
+.connection-card p.has-players {
+  color: var(--green-dark);
+  font-weight: 850;
+}
+
 .dot {
   width: 12px;
   height: 12px;
@@ -240,6 +245,13 @@ textarea,
   font-weight: 750;
 }
 
+.neo-note {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 750;
+}
+
 .primary-button,
 .secondary-button,
 .ghost-button,
@@ -349,26 +361,33 @@ textarea,
 
 .status-list {
   display: grid;
-  gap: 6px;
-  margin: 0 0 10px;
+  grid-template-columns: 0.72fr 1.45fr 0.72fr;
+  gap: 4px;
+  margin: 0 0 8px;
 }
 
 .status-list div {
   display: grid;
-  grid-template-columns: 56px 1fr;
-  gap: 6px;
+  grid-template-columns: 1fr;
+  gap: 0;
+  border-radius: 8px;
+  background: #f6faf8;
+  padding: 5px 6px;
 }
 
 .status-list dt {
   color: var(--muted);
-  font-size: 0.82rem;
+  font-size: 0.62rem;
   font-weight: 800;
 }
 
 .status-list dd {
   margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   line-height: 1.35;
-  font-size: 0.9rem;
+  font-size: 0.78rem;
   font-weight: 750;
 }
 
@@ -586,6 +605,8 @@ textarea {
 }
 
 .playing-card {
+  --card-width: 52px;
+  --card-height: 70px;
   justify-self: start;
   display: block;
   flex: 0 0 var(--card-width);
@@ -632,21 +653,7 @@ textarea {
 }
 
 .field-card {
-  --card-width: 42px;
-  --card-height: 58px;
-  flex: 0 0 var(--card-width);
   box-shadow: none;
-}
-
-.field-card .rank {
-  top: 6px;
-  left: 7px;
-  font-size: 1rem;
-}
-
-.field-card .suit {
-  bottom: 6px;
-  font-size: 0.95rem;
 }
 
 .composite-preview {
@@ -714,7 +721,7 @@ textarea {
 .log-panel {
   min-height: 520px;
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: auto auto minmax(0, 1fr);
   gap: 10px;
 }
 
@@ -730,31 +737,6 @@ body[data-mode="playing"] .status-panel {
 body[data-mode="playing"] .room-title-row .eyebrow,
 body[data-mode="playing"] .room-title-row h2 {
   display: none;
-}
-
-body[data-mode="playing"] .status-list {
-  grid-template-columns: 0.72fr 1.45fr 0.72fr;
-  gap: 4px;
-  margin-bottom: 6px;
-}
-
-body[data-mode="playing"] .status-list div {
-  grid-template-columns: 1fr;
-  gap: 0;
-  border-radius: 8px;
-  background: #f6faf8;
-  padding: 5px 6px;
-}
-
-body[data-mode="playing"] .status-list dt {
-  font-size: 0.62rem;
-}
-
-body[data-mode="playing"] .status-list dd {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 0.78rem;
 }
 
 body[data-mode="playing"] .next-hint {
@@ -789,7 +771,7 @@ body[data-mode="playing"] .status-panel .button-row button {
 
 body[data-mode="playing"] #addCpuBtn,
 body[data-mode="playing"] #startBtn,
-body[data-mode="playing"] #leaveBtn {
+body[data-mode="playing"] #readyBtn {
   display: none;
 }
 
@@ -858,6 +840,22 @@ body[data-mode="playing"] .log-box {
 
 .log-line strong {
   color: var(--ink);
+}
+
+.score-record summary {
+  color: var(--ink);
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.score-record pre {
+  margin: 8px 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--ink);
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  font-size: 0.84rem;
+  line-height: 1.45;
 }
 
 .chat-row {

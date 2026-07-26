@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>素数大富豪NEO アシスト版</title>
-    <link rel="stylesheet" href="./styles.css?v=neo-20260725-3" />
+    <link rel="stylesheet" href="./styles.css?v=neo-20260726-5" />
   </head>
   <body>
     <main class="app-shell">
@@ -36,19 +36,18 @@
           <div class="room-choice" role="group" aria-label="部屋選択">
             <button id="roomBeginnerBtn" class="room-choice-card active" type="button" aria-pressed="true">
               <span>初級</span>
-              <strong>7枚 偶数半減</strong>
-              <small>ペナルティ1枚 / アシストあり</small>
+              <strong>7枚 / 偶数半減</strong>
+              <small>ペナルティ1枚</small>
             </button>
             <button id="roomAdvancedBtn" class="room-choice-card" type="button" aria-pressed="false">
               <span>上級</span>
-              <strong>NEO 登録制限</strong>
-              <small>11枚 / 登録制限あり / アシストあり</small>
+              <strong>11枚 / 通常</strong>
+              <small>ペナルティ通常</small>
             </button>
           </div>
+          <p class="neo-note">素数リスト制限・登録制限・アシストありのNEO用ルームです。</p>
           <div class="action-stack">
-            <button id="practiceBtn" class="primary-button" type="button">初級でCPU練習</button>
-            <button id="friendBtn" class="secondary-button setup-shortcut" type="button">友だちと対戦待ちに入る</button>
-            <button id="watchBtn" class="ghost-button setup-shortcut" type="button">観戦だけする</button>
+            <button id="practiceBtn" class="primary-button" type="button">入室する</button>
           </div>
           <p class="microcopy">
             最初はサンプルの登録リストを自動で入れます。慣れたら登録欄で編集できます。
@@ -56,16 +55,16 @@
         </div>
 
         <div class="panel guide-panel">
-          <h2>この画面の考え方</h2>
+          <h2>操作方法</h2>
           <ol class="plain-steps">
-            <li>手札を見る</li>
-            <li>自分で出せそうなカードを考える</li>
-            <li>迷ったら下の候補を押して準備する</li>
+            <li>入室後に「対戦に参加」を押す</li>
+            <li>CPUと試す場合は「CPU追加」を押す</li>
+            <li>開始後は手札かおすすめを選んで出す</li>
           </ol>
           <div class="mini-rules">
             <span>場より大きい数</span>
             <span>同じ枚数</span>
-            <span>登録済みならOK</span>
+            <span>登録リスト内ならOK</span>
           </div>
         </div>
       </section>
@@ -75,7 +74,7 @@
           <div class="panel status-panel">
             <div class="room-title-row">
               <div>
-                <p id="roomBadge" class="eyebrow">7枚・偶数半減・ペナ1</p>
+                <p id="roomBadge" class="eyebrow">7枚・偶数半減・ペナルティ1枚</p>
                 <h2 id="roomHeading">初級ルーム</h2>
               </div>
               <button id="leaveBtn" class="ghost-button compact" type="button">退室</button>
@@ -141,10 +140,7 @@
           <div class="play-area">
             <section class="hand-panel">
               <div class="panel-heading-row">
-                <div>
-                  <p class="eyebrow">自分の手札</p>
-                  <h2>カード</h2>
-                </div>
+                <h2>手札</h2>
                 <span id="turnBadge" class="turn-badge">待機中</span>
               </div>
               <div id="handCards" class="card-row empty-row">ゲーム開始後に表示されます</div>
@@ -152,10 +148,7 @@
 
             <section class="selected-panel">
               <div class="panel-heading-row">
-                <div>
-                  <p class="eyebrow">選択中</p>
-                  <h2 id="selectedTitle">カードを選んでください</h2>
-                </div>
+                <h2 id="selectedTitle">選択中: なし</h2>
                 <button id="clearSelectionBtn" class="ghost-button compact" type="button">クリア</button>
               </div>
               <div id="selectedCards" class="card-row empty-row">未選択</div>
@@ -170,10 +163,7 @@
 
             <section id="compositePanel" class="composite-panel hidden">
               <div class="panel-heading-row">
-                <div>
-                  <p class="eyebrow">素因数場</p>
-                  <h2 id="compositeTitle">材料札で式を作る</h2>
-                </div>
+                <h2 id="compositeTitle">素因数場</h2>
                 <div class="button-row compact-ops">
                   <button id="compositeMulBtn" class="ghost-button compact" type="button">×</button>
                   <button id="compositePowBtn" class="ghost-button compact" type="button">^</button>
@@ -186,14 +176,12 @@
 
             <section class="assist-panel">
               <div class="panel-heading-row">
-                <div>
-                  <p class="eyebrow">おすすめ</p>
-                  <h2>出せる候補</h2>
-                </div>
+                <h2>おすすめ</h2>
                 <div class="assist-actions">
                   <button id="assistStrongBtn" class="filter-chip active" type="button">強い順</button>
                   <button id="assistEasyBtn" class="filter-chip" type="button">弱い順</button>
-                  <button id="assistManyBtn" class="filter-chip" type="button">50件</button>
+                  <button id="assistRestBtn" class="filter-chip" type="button">残り</button>
+                  <button id="assistManyBtn" class="filter-chip" type="button">増やす</button>
                 </div>
               </div>
               <div id="assistList" class="assist-list empty">
@@ -206,16 +194,16 @@
         <aside class="log-column">
           <div class="panel log-panel">
             <h2>チャット</h2>
-            <div id="logBox" class="log-box"></div>
             <div class="chat-row">
               <input id="chatInput" placeholder="短いメッセージ" />
               <button id="chatBtn" class="ghost-button compact" type="button">送信</button>
             </div>
+            <div id="logBox" class="log-box"></div>
           </div>
         </aside>
       </section>
     </main>
 
-    <script src="./app.js?v=neo-20260725-3"></script>
+    <script src="./app.js?v=neo-20260726-5"></script>
   </body>
 </html>

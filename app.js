@@ -5,18 +5,20 @@ const CONFIG = {
     beginner: {
       roomId: "room_16",
       label: "初級",
-      title: "7枚 偶数半減",
-      summary: "ペナルティ1枚 / アシストあり",
+      title: "7枚 / 偶数半減",
+      summary: "ペナルティ1枚",
       roomHeading: "初級ルーム",
-      badge: "7枚・偶数半減・ペナ1",
+      badge: "7枚 / 偶数半減 / ペナルティ1枚",
+      defaultSampleKey: "gold_prime_table",
     },
     advanced: {
       roomId: "room_14",
       label: "上級",
-      title: "NEO 登録制限",
-      summary: "11枚 / 登録制限あり / アシストあり",
-      roomHeading: "NEOルーム",
-      badge: "NEO 制限あり・アシストあり",
+      title: "11枚 / 通常",
+      summary: "ペナルティ通常",
+      roomHeading: "上級ルーム",
+      badge: "11枚 / 通常",
+      defaultSampleKey: "sashimi2024",
     },
   },
   defaultSampleKey: "sashimi2024",
@@ -93,8 +95,6 @@ function bindElements() {
     "roomBeginnerBtn",
     "roomAdvancedBtn",
     "practiceBtn",
-    "friendBtn",
-    "watchBtn",
     "leaveBtn",
     "roomBadge",
     "roomHeading",
@@ -117,6 +117,7 @@ function bindElements() {
     "opponentCounts",
     "assistStrongBtn",
     "assistEasyBtn",
+    "assistRestBtn",
     "assistManyBtn",
     "assistList",
     "selectedTitle",
@@ -148,12 +149,10 @@ function bindEvents() {
   el.randomNameBtn.addEventListener("click", setRandomName);
   el.roomBeginnerBtn.addEventListener("click", () => selectRoom("beginner"));
   el.roomAdvancedBtn.addEventListener("click", () => selectRoom("advanced"));
-  el.practiceBtn.addEventListener("click", () => startFlow("practice"));
-  el.friendBtn.addEventListener("click", () => startFlow("friend"));
-  el.watchBtn.addEventListener("click", () => startFlow("watch"));
+  el.practiceBtn.addEventListener("click", () => startFlow("enter"));
   el.leaveBtn.addEventListener("click", leaveRoom);
   el.readyBtn.addEventListener("click", toggleReady);
-  el.addCpuBtn.addEventListener("click", addCpu);
+  el.addCpuBtn.addEventListener("click", toggleCpu);
   el.startBtn.addEventListener("click", startGame);
   el.sampleBtn.addEventListener("click", loadSample);
   el.saveRegisterBtn.addEventListener("click", saveRegisteredNumbers);
@@ -174,6 +173,7 @@ function bindEvents() {
   });
   el.assistStrongBtn.addEventListener("click", () => setAssistOrder("strong"));
   el.assistEasyBtn.addEventListener("click", () => setAssistOrder("weak"));
+  el.assistRestBtn.addEventListener("click", toggleAssistRest);
   el.assistManyBtn.addEventListener("click", toggleAssistLimit);
 }
 
@@ -190,8 +190,16 @@ function selectRoom(roomKey) {
   state.selectedRoomKey = roomKey;
   state.hnpChallengeEnabled = !!state.roomHnpChallengeEnabled[currentRoomId()];
   state.currentRoomHasCpu = false;
+  setSampleSelectToRoomDefault();
   renderRoomChoice();
   renderAll();
+}
+
+function setSampleSelectToRoomDefault() {
+  const key = currentRoomOption().defaultSampleKey || CONFIG.defaultSampleKey;
+  if ([...el.sampleSelect.options].some((option) => option.value === key)) {
+    el.sampleSelect.value = key;
+  }
 }
 
 function isRoomAvailable(roomKey) {
@@ -205,7 +213,7 @@ function connect() {
 
   state.ws.addEventListener("open", () => {
     state.connected = true;
-    setConnection("online", "接続済み", `既存サーバー / ${currentRoomId()} を使います`);
+    setConnection("online", "接続済み", `既存サーバー / ${currentRoomId()}`);
     send({ type: "get_room_counts" });
   });
 
@@ -276,7 +284,6 @@ function handleMessage(msg) {
       if (typeof msg.hnp_challenge_enabled === "boolean") state.hnpChallengeEnabled = msg.hnp_challenge_enabled;
       clearFlowPreview(false);
       clearSelection();
-      log("system", "ゲームが始まりました。アシスト候補から選んでみましょう。");
       break;
     case "deal":
       state.hand = msg.your_hand || [];
@@ -308,15 +315,11 @@ function handleMessage(msg) {
       renderAssist();
       break;
     case "action_result":
-      if (msg.action === "pass") log("system", "パスしました。");
-      if (msg.action === "play_card") log("system", "カードが出されました。");
       if (msg.action === "field_flow") {
         showFlowPreview(msg.played_cards || []);
-        log("system", msg.number === "X" ? "ジョーカーで場が流れました。" : `${msg.number || "カード"}で場が流れました。`);
       }
       break;
     case "penalty":
-      log("system", "ペナルティが発生しました。");
       break;
     case "game_over":
       state.roomState = msg.state || "waiting";
@@ -324,15 +327,17 @@ function handleMessage(msg) {
       state.hand = [];
       clearFlowPreview(false);
       clearSelection();
-      log("system", `${msg.winner || "勝者"} が勝利しました。`);
       break;
     case "score_record":
-      log("score", (msg.lines || []).join(" / "));
+      logScoreRecord(msg.lines || []);
       break;
     case "chat":
       log(msg.sender || "chat", msg.message || "");
       break;
     case "error":
+      if (msg.code === "registered_number_limit") {
+        el.registerStatus.textContent = msg.message || "登録数が上限を超えています";
+      }
       log("error", msg.message || "エラーが発生しました。");
       break;
   }
@@ -358,6 +363,11 @@ function startFlow(flow) {
 
 function continuePendingFlowAfterJoin() {
   if (!state.pendingFlow) return;
+  if (state.pendingFlow === "enter") {
+    loadSample();
+    state.pendingFlow = null;
+    return;
+  }
   if (state.pendingFlow !== "watch") {
     loadSample();
     if (!state.isWaiting) {
@@ -440,6 +450,7 @@ function leaveRoom() {
 }
 
 function toggleReady() {
+  if (state.roomState === "playing") return;
   state.isWaiting = !state.isWaiting;
   send({ type: "change_status", status: state.isWaiting ? "waiting" : "watching" });
   if (!state.isWaiting) {
@@ -454,12 +465,25 @@ function addCpu() {
   send({ type: "add_cpu", cpu_key: profiles[0]?.key || "basic" });
 }
 
+function removeCpu() {
+  send({ type: "remove_cpu" });
+}
+
+function toggleCpu() {
+  if (state.roomState === "playing") return;
+  if (state.currentRoomHasCpu) {
+    removeCpu();
+  } else {
+    addCpu();
+  }
+}
+
 function startGame() {
   send({ type: "start_game" });
 }
 
 function loadSample() {
-  const selected = el.sampleSelect.value || CONFIG.defaultSampleKey;
+  const selected = el.sampleSelect.value || currentRoomOption().defaultSampleKey || CONFIG.defaultSampleKey;
   send({ type: "load_sample_registered_primes", sample_key: selected });
   el.registerStatus.textContent = "サンプル読み込み中...";
 }
@@ -489,7 +513,7 @@ function renderRegisteredStatus(msg) {
 }
 
 function renderSampleOptions() {
-  const current = el.sampleSelect.value || CONFIG.defaultSampleKey;
+  const current = el.sampleSelect.value || currentRoomOption().defaultSampleKey || CONFIG.defaultSampleKey;
   el.sampleSelect.innerHTML = "";
   state.sampleOptions.forEach((option) => {
     const opt = document.createElement("option");
@@ -607,8 +631,10 @@ function renderAll() {
       : "対戦待ち"
     : "観戦中";
   el.turnLabel.textContent = turnLabel();
-  el.readyBtn.textContent = state.isWaiting ? "観戦に戻る" : "対戦に参加";
-  el.addCpuBtn.disabled = state.roomState === "playing" || state.currentRoomHasCpu;
+  el.readyBtn.textContent = state.isWaiting ? "待機をやめる" : "対戦に参加";
+  el.readyBtn.disabled = state.roomState === "playing";
+  el.addCpuBtn.textContent = state.currentRoomHasCpu ? "CPU退出" : "CPU追加";
+  el.addCpuBtn.disabled = state.roomState === "playing";
   el.startBtn.disabled = state.roomState === "playing" || !state.isWaiting;
   el.playBtn.disabled = !isMyTurn() || !state.selectedCards.length || (state.compositeMode && !state.compositeTokens.length);
   el.playBtn.textContent = isHnpChallengeSelection() ? "HNPチャレンジ" : "出す";
@@ -631,7 +657,6 @@ function renderAll() {
 function renderRoomChoice() {
   const room = currentRoomOption();
   const roomId = currentRoomId();
-  const ruleLabel = state.roomRules[roomId] || room.summary;
   const count = state.roomCounts[roomId] ?? 0;
 
   el.roomBeginnerBtn.classList.toggle("active", state.selectedRoomKey === "beginner");
@@ -643,13 +668,12 @@ function renderRoomChoice() {
   el.roomBeginnerBtn.setAttribute("aria-pressed", String(state.selectedRoomKey === "beginner"));
   el.roomAdvancedBtn.setAttribute("aria-pressed", String(state.selectedRoomKey === "advanced"));
 
-  el.practiceBtn.textContent = `${room.label}でCPU練習`;
-  el.friendBtn.textContent = `${room.label}で友だちを待つ`;
-  el.watchBtn.textContent = `${room.label}を観戦`;
+  el.practiceBtn.textContent = `${room.label}に入室する`;
   el.roomBadge.textContent = room.badge;
   el.roomHeading.textContent = room.roomHeading;
   if (state.connected && state.appMode === "setup") {
-    el.serverLabel.textContent = `既存サーバー / ${roomId} / ${count}人 / ${ruleLabel}`;
+    el.serverLabel.textContent = `既存サーバー / ${roomId} / ${count}人`;
+    el.serverLabel.classList.toggle("has-players", count > 0);
   }
 }
 
@@ -706,10 +730,11 @@ function renderHand() {
 function renderSelection() {
   el.selectedCards.innerHTML = "";
   if (!state.selectedCards.length) {
+    if (state.assistFilters.target_scope === "unselected") state.assistFilters.target_scope = "all";
     setCardRowColumns(el.selectedCards, 1);
     el.selectedCards.textContent = "未選択";
     el.selectedCards.classList.add("empty-row");
-    el.selectedTitle.textContent = "カードを選んでください";
+    el.selectedTitle.textContent = "選択中: なし";
   } else {
     setCardRowColumns(el.selectedCards, state.selectedCards.length);
     el.selectedCards.classList.remove("empty-row");
@@ -722,9 +747,9 @@ function renderSelection() {
     const number = selectedNumberText();
     el.selectedTitle.textContent = number
       ? isHnpChallengeSelection()
-        ? `${number} からHNPチャレンジ`
-        : `${number} を出す準備中`
-      : "ジョーカーの値を選んでください";
+        ? `選択中: ${number} (HNP)`
+        : `選択中: ${number}`
+      : "選択中: X=?";
   }
   renderJokerControls();
 }
@@ -844,50 +869,11 @@ function renderCompositeJokerControls() {
 function renderAssist() {
   el.assistStrongBtn.classList.toggle("active", state.assistFilters.order === "strong");
   el.assistEasyBtn.classList.toggle("active", state.assistFilters.order === "weak");
+  el.assistRestBtn.classList.toggle("active", state.assistFilters.target_scope === "unselected");
+  el.assistRestBtn.disabled = !state.selectedCards.length;
   el.assistManyBtn.classList.toggle("active", state.assistFilters.limit_mode === "fifty");
-  el.assistList.innerHTML = "";
-  if (state.roomState !== "playing" || !state.hand.length) {
-    el.assistList.textContent = "ゲームが始まると、ここに「押せば選べる」候補が出ます。";
-    el.assistList.classList.add("empty");
-    return;
-  }
-  if (!state.lastAssistCandidates.length) {
-    el.assistList.textContent = "今すぐ出せる候補が見つかりません。ドローかパスを試してください。";
-    el.assistList.classList.add("empty");
-    return;
-  }
-  el.assistList.classList.remove("empty");
-  state.lastAssistCandidates.forEach((candidate, index) => {
-    const btn = document.createElement("button");
-    btn.className = "assist-card";
-    btn.type = "button";
-    btn.innerHTML = "";
-    const kind = document.createElement("span");
-    kind.className = "assist-kind";
-    kind.textContent = candidate.kind === "composite" ? "合成数出し" : "登録素数";
-    const number = document.createElement("span");
-    number.className = "assist-number";
-    number.textContent = candidate.visible_text || candidate.number || assistCardsText(candidate.cards, candidate.assigned_numbers);
-    const detail = document.createElement("span");
-    detail.className = "assist-detail";
-    detail.textContent = assistDetail(candidate, index);
-    btn.append(kind, number, detail);
-    btn.addEventListener("click", () => applyAssistCandidate(candidate));
-    el.assistList.appendChild(btn);
-  });
-}
-
-function assistDetail(candidate, index) {
-  const count = (candidate.cards || []).length;
-  const field = candidate.field_count_match === false ? "枚数注意" : "今出せる";
-  const material = candidate.material_text ? ` / 材料 ${candidate.material_text}` : "";
-  return `候補${index + 1} / ${count}枚 / ${field}${material}`;
-}
-
-function renderAssist() {
-  el.assistStrongBtn.classList.toggle("active", state.assistFilters.order === "strong");
-  el.assistEasyBtn.classList.toggle("active", state.assistFilters.order === "weak");
-  el.assistManyBtn.classList.toggle("active", state.assistFilters.limit_mode === "fifty");
+  el.assistManyBtn.textContent = state.assistFilters.limit_mode === "fifty" ? "減らす" : "増やす";
+  el.assistManyBtn.title = state.assistFilters.limit_mode === "fifty" ? "候補: 多め" : "候補: 少なめ";
   el.assistList.innerHTML = "";
   if (state.roomState !== "playing" || !state.hand.length) {
     el.assistList.textContent = "ゲーム開始後に候補が出ます";
@@ -935,6 +921,7 @@ function assistTags(candidate) {
   const tags = [];
   if (candidate.kind === "composite") tags.push("合成");
   if (candidate.field_count_match === false) tags.push("枚数注意");
+  if (candidate.finishes_remaining) tags.push("残り上がり");
   if (candidate.finishes_hand) tags.push("上がり");
   if (candidate.trump) tags.push("切り札");
   return tags;
@@ -1165,6 +1152,12 @@ function toggleAssistLimit() {
   renderAssist();
 }
 
+function toggleAssistRest() {
+  state.assistFilters.target_scope = state.assistFilters.target_scope === "unselected" ? "all" : "unselected";
+  scheduleAssist();
+  renderAssist();
+}
+
 function cardButton(card, options = {}) {
   const btn = document.createElement(options.staticOnly ? "div" : "button");
   btn.className = `playing-card ${isRedSuit(card.suit) ? "red" : ""}`;
@@ -1177,7 +1170,6 @@ function cardButton(card, options = {}) {
   rank.className = "rank";
   rank.textContent = rankLabel(card);
   btn.append(suit, rank);
-  btn.title = card.card_id || "";
   return btn;
 }
 
@@ -1248,6 +1240,7 @@ function setConnection(kind, label, detail) {
   if (kind === "online") el.connectionDot.classList.add("online");
   if (kind === "error") el.connectionDot.classList.add("error");
   el.connectionLabel.textContent = label;
+  el.serverLabel.classList.remove("has-players");
   el.serverLabel.textContent = detail;
 }
 
@@ -1258,4 +1251,21 @@ function log(sender, message) {
   strong.textContent = sender;
   line.append(strong, document.createTextNode(`: ${message}`));
   el.logBox.prepend(line);
+}
+
+function logScoreRecord(lines) {
+  if (!lines.length) return;
+  const entry = document.createElement("details");
+  entry.className = "log-line score-record";
+  entry.open = true;
+
+  const summary = document.createElement("summary");
+  summary.textContent = "数譜";
+  entry.appendChild(summary);
+
+  const pre = document.createElement("pre");
+  pre.textContent = lines.join("\n");
+  entry.appendChild(pre);
+
+  el.logBox.prepend(entry);
 }
