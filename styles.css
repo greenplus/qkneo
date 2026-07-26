@@ -90,6 +90,16 @@ h2 {
   font-size: 1.05rem;
 }
 
+.game-section-title {
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.95rem;
+  font-weight: 900;
+  line-height: 1.2;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
 .lead {
   max-width: 640px;
   margin-top: 10px;
@@ -393,6 +403,40 @@ textarea,
   font-weight: 750;
 }
 
+.cpu-chooser {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fbf9;
+  padding: 10px;
+}
+
+.cpu-chooser-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.cpu-chooser-heading label {
+  color: var(--green-dark);
+  font-size: 0.86rem;
+  font-weight: 900;
+}
+
+.cpu-profile-description {
+  min-height: 3em;
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.cpu-chooser > .secondary-button {
+  justify-self: start;
+}
+
 .status-list {
   display: grid;
   grid-template-columns: 0.72fr 1.45fr 0.72fr;
@@ -504,6 +548,10 @@ textarea {
   grid-column: 1 / -1;
 }
 
+.field-zone .game-section-title {
+  margin-bottom: 4px;
+}
+
 .field-cards {
   min-height: 36px;
   display: flex;
@@ -535,9 +583,14 @@ textarea {
 }
 
 .metric span {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
   color: var(--muted);
   font-size: 0.72rem;
   font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .metric strong {
@@ -844,8 +897,8 @@ body[data-mode="playing"] .panel {
   padding: 8px;
 }
 
-body[data-mode="playing"] .panel-heading-row h2 {
-  font-size: 0.95rem;
+body[data-mode="playing"] .game-section-title {
+  font-size: 0.9rem;
 }
 
 body[data-mode="playing"] .eyebrow {
@@ -924,8 +977,17 @@ body[data-mode="playing"] .log-box {
 }
 
 .chat-row input {
+  width: auto;
+  min-width: 0;
   min-height: 38px;
+  flex: 1 1 auto;
   padding: 0 10px;
+}
+
+.chat-row button {
+  min-width: 64px;
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .help-shell {

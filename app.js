@@ -35,12 +35,15 @@ const state = {
   selectedRoomKey: CONFIG.defaultRoomKey,
   isWaiting: false,
   currentTurn: "",
+  firstPlayerId: null,
   roomCounts: {},
   roomCountsLoaded: false,
   roomRules: {},
   roomCpuProfiles: {},
   roomHnpChallengeEnabled: {},
   roomRegisteredNumberLimits: {},
+  cpuChooserOpen: false,
+  selectedCpuKey: "",
   players: [],
   currentRoomHasCpu: false,
   hnpChallengeEnabled: false,
@@ -108,6 +111,11 @@ function bindElements() {
     "readyBtn",
     "addCpuBtn",
     "startBtn",
+    "cpuChooser",
+    "cpuProfileSelect",
+    "cpuProfileDescription",
+    "cpuChooserCloseBtn",
+    "confirmCpuBtn",
     "sampleBtn",
     "sampleSelect",
     "primeText",
@@ -117,7 +125,11 @@ function bindElements() {
     "registerLimitNote",
     "fieldCards",
     "deckCount",
+    "myHandMetric",
+    "myHandLabel",
     "myHandCount",
+    "opponentMetric",
+    "opponentLabel",
     "opponentCounts",
     "assistRecommendedBtn",
     "assistStrongBtn",
@@ -159,6 +171,9 @@ function bindEvents() {
   el.leaveBtn.addEventListener("click", leaveRoom);
   el.readyBtn.addEventListener("click", toggleReady);
   el.addCpuBtn.addEventListener("click", toggleCpu);
+  el.cpuProfileSelect.addEventListener("change", selectCpuProfile);
+  el.cpuChooserCloseBtn.addEventListener("click", closeCpuChooser);
+  el.confirmCpuBtn.addEventListener("click", confirmCpuSelection);
   el.startBtn.addEventListener("click", startGame);
   el.sampleBtn.addEventListener("click", loadSample);
   el.saveRegisterBtn.addEventListener("click", saveRegisteredNumbers);
@@ -197,6 +212,8 @@ function selectRoom(roomKey) {
   state.selectedRoomKey = roomKey;
   state.hnpChallengeEnabled = !!state.roomHnpChallengeEnabled[currentRoomId()];
   state.currentRoomHasCpu = false;
+  state.cpuChooserOpen = false;
+  state.selectedCpuKey = "";
   renderSampleOptions();
   setSampleSelectToRoomDefault();
   renderRoomChoice();
@@ -223,6 +240,7 @@ function connect() {
     state.connected = true;
     setConnection("online", "接続済み", `既存サーバー / ${currentRoomId()}`);
     send({ type: "get_room_counts" });
+    renderAll();
   });
 
   state.ws.addEventListener("message", (event) => {
@@ -238,7 +256,9 @@ function connect() {
   });
 
   state.ws.addEventListener("error", () => {
+    state.connected = false;
     setConnection("error", "接続エラー", "サーバーに接続できませんでした");
+    renderAll();
   });
 }
 
@@ -275,6 +295,7 @@ function handleMessage(msg) {
       if (msg.room_id === currentRoomId()) {
         state.roomCounts[currentRoomId()] = msg.count;
         state.currentRoomHasCpu = (msg.player_list || []).some((player) => player.is_cpu);
+        if (state.currentRoomHasCpu) state.cpuChooserOpen = false;
         state.roomCpuProfiles[currentRoomId()] = msg.cpu_profiles || state.roomCpuProfiles[currentRoomId()] || [];
         if (typeof msg.hnp_challenge_enabled === "boolean") state.hnpChallengeEnabled = msg.hnp_challenge_enabled;
         renderPlayers(msg.player_list || [], msg.waiting_count || 0);
@@ -290,6 +311,7 @@ function handleMessage(msg) {
     case "game_start":
       state.appMode = "playing";
       state.roomState = "playing";
+      state.firstPlayerId = null;
       if (typeof msg.hnp_challenge_enabled === "boolean") state.hnpChallengeEnabled = msg.hnp_challenge_enabled;
       clearFlowPreview(false);
       clearSelection();
@@ -308,6 +330,7 @@ function handleMessage(msg) {
       state.appMode = msg.state === "playing" ? "playing" : state.appMode;
       state.roomState = msg.state || state.roomState;
       state.currentTurn = msg.current_turn || "";
+      state.firstPlayerId = msg.first_player_id || state.firstPlayerId;
       state.currentRoomHasCpu = (msg.player_list || []).some((player) => player.is_cpu);
       if (typeof msg.hnp_challenge_enabled === "boolean") state.hnpChallengeEnabled = msg.hnp_challenge_enabled;
       renderField(msg);
@@ -344,6 +367,7 @@ function handleMessage(msg) {
       state.roomState = msg.state || "waiting";
       state.appMode = "room";
       state.hand = [];
+      state.firstPlayerId = null;
       clearFlowPreview(false);
       clearSelection();
       break;
@@ -364,6 +388,11 @@ function handleMessage(msg) {
 }
 
 function startFlow(flow) {
+  if (!state.connected || !state.ws || state.ws.readyState !== WebSocket.OPEN) {
+    log("error", "サーバーへ接続してから入室してください。");
+    renderAll();
+    return;
+  }
   if (!isRoomAvailable(state.selectedRoomKey)) {
     log("error", `${currentRoomId()} は接続先サーバーにまだありません。サーバー反映後に選べます。`);
     renderAll();
@@ -459,10 +488,13 @@ function leaveRoom() {
   state.appMode = "setup";
   state.isWaiting = false;
   state.pendingFlow = null;
+  state.cpuChooserOpen = false;
+  state.selectedCpuKey = "";
   state.hand = [];
   state.currentTurn = "";
   state.fieldCards = [];
   state.handCounts = [];
+  state.firstPlayerId = null;
   clearFlowPreview(false);
   clearSelection();
   renderAll();
@@ -479,9 +511,14 @@ function toggleReady() {
   renderAll();
 }
 
-function addCpu() {
+function addCpu(cpuKey = "") {
   const profiles = state.roomCpuProfiles[currentRoomId()] || [];
-  send({ type: "add_cpu", cpu_key: profiles[0]?.key || "basic" });
+  const selected = profiles.find((profile) => profile.key === cpuKey) || profiles[0];
+  if (!selected) {
+    log("error", "この部屋で選べるCPUがありません。");
+    return;
+  }
+  send({ type: "add_cpu", cpu_key: selected.key });
 }
 
 function removeCpu() {
@@ -491,10 +528,30 @@ function removeCpu() {
 function toggleCpu() {
   if (state.roomState === "playing") return;
   if (state.currentRoomHasCpu) {
+    state.cpuChooserOpen = false;
     removeCpu();
   } else {
-    addCpu();
+    state.cpuChooserOpen = !state.cpuChooserOpen;
+    renderCpuChooser();
   }
+}
+
+function selectCpuProfile() {
+  state.selectedCpuKey = el.cpuProfileSelect.value;
+  renderCpuChooser();
+}
+
+function closeCpuChooser() {
+  state.cpuChooserOpen = false;
+  renderCpuChooser();
+}
+
+function confirmCpuSelection() {
+  const cpuKey = el.cpuProfileSelect.value || state.selectedCpuKey;
+  state.selectedCpuKey = cpuKey;
+  state.cpuChooserOpen = false;
+  addCpu(cpuKey);
+  renderCpuChooser();
 }
 
 function startGame() {
@@ -581,7 +638,7 @@ function playerListLabel(player) {
 
 function playerLabel(player) {
   if (player.id === state.playerId) return "自分";
-  if (player.is_cpu) return "CPU";
+  if (player.is_cpu) return player.name || "CPU";
   return player.name || "相手";
 }
 
@@ -599,11 +656,7 @@ function renderField(msg) {
   if (state.fieldCards.length) clearFlowPreview(false);
   el.deckCount.textContent = state.deckCount;
   renderFieldCards();
-  const countText = state.handCounts
-    .map((item) => `${item.name}: ${item.count}`)
-    .join(" / ");
-  if (countText) el.myHandCount.title = countText;
-  renderOpponentCounts(state.handCounts);
+  renderHandMetrics();
 }
 
 function renderFieldCards() {
@@ -636,15 +689,60 @@ function clearFlowPreview(shouldRender = true) {
   if (shouldRender) renderFieldCards();
 }
 
+function renderHandMetrics() {
+  if (state.roomState === "playing" && !state.isWaiting) {
+    const spectatorCounts = spectatorHandCounts();
+    renderSpectatorHandMetric(el.myHandMetric, el.myHandLabel, el.myHandCount, "先手", spectatorCounts[0]);
+    renderSpectatorHandMetric(el.opponentMetric, el.opponentLabel, el.opponentCounts, "後手", spectatorCounts[1]);
+    return;
+  }
+
+  el.myHandLabel.textContent = "手札";
+  el.myHandCount.textContent = String(state.hand.length);
+  el.myHandMetric.title = `自分の手札: ${state.hand.length}枚`;
+  el.myHandMetric.setAttribute("aria-label", `自分の手札 ${state.hand.length}枚`);
+
+  el.opponentLabel.textContent = "相手";
+  renderOpponentCounts(state.handCounts);
+}
+
+function spectatorHandCounts() {
+  if (!state.firstPlayerId) return state.handCounts;
+  const firstIndex = state.handCounts.findIndex((item) => item.id === state.firstPlayerId);
+  if (firstIndex < 0) return state.handCounts;
+  const first = state.handCounts[firstIndex];
+  return [first, ...state.handCounts.filter((_, index) => index !== firstIndex)];
+}
+
+function renderSpectatorHandMetric(metric, label, count, side, player) {
+  const playerName = player?.name || "";
+  label.textContent = playerName ? `${side} ${playerName}` : side;
+  count.textContent = player ? String(player.count) : "-";
+  const description = player
+    ? `${side} ${playerName}の手札: ${player.count}枚`
+    : `${side}: プレイヤーなし`;
+  metric.title = description;
+  metric.setAttribute("aria-label", description);
+}
+
 function renderOpponentCounts(handCounts) {
-  const opponents = handCounts.filter((item) => item.name !== state.playerName);
+  const opponents = handCounts.filter((item) => (
+    state.playerId && item.id
+      ? item.id !== state.playerId
+      : item.name !== state.playerName
+  ));
   if (!opponents.length) {
     el.opponentCounts.textContent = "-";
     el.opponentCounts.title = "";
+    el.opponentMetric.title = "相手の手札: 未確定";
+    el.opponentMetric.setAttribute("aria-label", "相手の手札 未確定");
     return;
   }
   el.opponentCounts.textContent = opponents.map((item) => item.count).join("/");
   el.opponentCounts.title = opponents.map((item) => `${item.name}: ${item.count}`).join(" / ");
+  const description = opponents.map((item) => `${item.name}の手札 ${item.count}枚`).join("、");
+  el.opponentMetric.title = description;
+  el.opponentMetric.setAttribute("aria-label", description);
 }
 
 function renderAll() {
@@ -661,8 +759,13 @@ function renderAll() {
   el.readyBtn.textContent = state.isWaiting ? "待機をやめる" : "対戦に参加";
   el.readyBtn.disabled = state.roomState === "playing";
   el.addCpuBtn.textContent = state.currentRoomHasCpu ? "CPU退出" : "CPU追加";
-  el.addCpuBtn.disabled = state.roomState === "playing";
+  el.addCpuBtn.setAttribute("aria-expanded", String(state.cpuChooserOpen && !state.currentRoomHasCpu));
+  el.addCpuBtn.disabled = state.roomState === "playing" || (
+    !state.currentRoomHasCpu
+    && !(state.roomCpuProfiles[currentRoomId()] || []).length
+  );
   el.startBtn.disabled = state.roomState === "playing" || !state.isWaiting;
+  renderCpuChooser();
   el.playBtn.disabled = !isMyTurn() || !state.selectedCards.length || (state.compositeMode && !state.compositeTokens.length);
   el.playBtn.textContent = isHnpChallengeSelection() ? "HNPチャレンジ" : "出す";
   el.compositeModeBtn.disabled = state.roomState !== "playing" || !state.hand.length;
@@ -673,12 +776,38 @@ function renderAll() {
   el.turnBadge.textContent = isMyTurn() ? "あなたの番" : state.roomState === "playing" ? "相手の番" : "待機中";
   el.turnBadge.classList.toggle("ready", isMyTurn());
   el.turnBadge.classList.toggle("alert", state.roomState === "playing" && !isMyTurn());
-  el.myHandCount.textContent = String(state.hand.length);
+  renderHandMetrics();
   renderNextHint();
   renderHand();
   renderSelection();
   renderCompositeZone();
   renderAssist();
+}
+
+function renderCpuChooser() {
+  const profiles = state.roomCpuProfiles[currentRoomId()] || [];
+  const shouldShow = state.cpuChooserOpen
+    && !state.currentRoomHasCpu
+    && state.roomState !== "playing"
+    && profiles.length > 0;
+  el.addCpuBtn.setAttribute("aria-expanded", String(shouldShow));
+  el.cpuChooser.classList.toggle("hidden", !shouldShow);
+  if (!shouldShow) return;
+
+  const selectedExists = profiles.some((profile) => profile.key === state.selectedCpuKey);
+  if (!selectedExists) state.selectedCpuKey = profiles[0].key;
+
+  el.cpuProfileSelect.replaceChildren(...profiles.map((profile) => {
+    const option = document.createElement("option");
+    option.value = profile.key;
+    option.textContent = profile.label;
+    return option;
+  }));
+  el.cpuProfileSelect.value = state.selectedCpuKey;
+
+  const selected = profiles.find((profile) => profile.key === state.selectedCpuKey);
+  el.cpuProfileDescription.textContent = selected?.description || "このCPUの説明はありません。";
+  el.confirmCpuBtn.textContent = `${selected?.label || "CPU"}を追加`;
 }
 
 function renderRoomChoice() {
@@ -696,6 +825,7 @@ function renderRoomChoice() {
   el.roomAdvancedBtn.setAttribute("aria-pressed", String(state.selectedRoomKey === "advanced"));
 
   el.practiceBtn.textContent = `${room.label}に入室する`;
+  el.practiceBtn.disabled = !state.connected || !isRoomAvailable(state.selectedRoomKey);
   el.roomBadge.textContent = room.badge;
   el.roomHeading.textContent = room.roomHeading;
   const registeredNumberLimit = state.roomRegisteredNumberLimits[roomId];

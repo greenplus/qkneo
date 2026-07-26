@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>素数大富豪NEO β版</title>
-    <link rel="stylesheet" href="./styles.css?v=neo-20260726-7" />
+    <link rel="stylesheet" href="./styles.css?v=neo-20260726-9" />
   </head>
   <body>
     <main class="app-shell">
@@ -48,7 +48,7 @@
           </div>
           <p class="neo-note">素数リスト制限・登録制限・アシストありのNEO用ルームです。</p>
           <div class="action-stack">
-            <button id="practiceBtn" class="primary-button" type="button">入室する</button>
+            <button id="practiceBtn" class="primary-button" type="button" disabled>入室する</button>
           </div>
           <p class="microcopy">
             最初はサンプルの登録リストを自動で入れます。慣れたら登録欄で編集できます。
@@ -107,6 +107,15 @@
               <button id="addCpuBtn" class="ghost-button" type="button">CPU追加</button>
               <button id="startBtn" class="primary-button" type="button">開始</button>
             </div>
+            <div id="cpuChooser" class="cpu-chooser hidden">
+              <div class="cpu-chooser-heading">
+                <label for="cpuProfileSelect">対戦するCPU</label>
+                <button id="cpuChooserCloseBtn" class="ghost-button compact" type="button">閉じる</button>
+              </div>
+              <select id="cpuProfileSelect" class="full-select"></select>
+              <p id="cpuProfileDescription" class="cpu-profile-description"></p>
+              <button id="confirmCpuBtn" class="secondary-button" type="button">このCPUを追加</button>
+            </div>
           </div>
 
           <details id="registerPanel" class="panel register-panel">
@@ -137,16 +146,16 @@
               <span>山札</span>
               <strong id="deckCount">-</strong>
             </div>
-            <div class="metric">
-              <span>手札</span>
+            <div id="myHandMetric" class="metric">
+              <span id="myHandLabel">手札</span>
               <strong id="myHandCount">0</strong>
             </div>
-            <div class="metric">
-              <span>相手</span>
+            <div id="opponentMetric" class="metric">
+              <span id="opponentLabel">相手</span>
               <strong id="opponentCounts">-</strong>
             </div>
             <div class="field-zone">
-              <p class="eyebrow">場</p>
+              <h2 class="game-section-title">場</h2>
               <div id="fieldCards" class="field-cards">まだ何も出ていません</div>
             </div>
           </div>
@@ -154,7 +163,7 @@
           <div class="play-area">
             <section class="hand-panel">
               <div class="panel-heading-row">
-                <h2>手札</h2>
+                <h2 class="game-section-title">手札</h2>
                 <div class="hand-heading-status">
                   <span id="remainingFinishNotice" class="remaining-finish-notice hidden">残り上がりあり</span>
                   <span id="turnBadge" class="turn-badge">待機中</span>
@@ -165,7 +174,7 @@
 
             <section class="selected-panel">
               <div class="panel-heading-row">
-                <h2 id="selectedTitle">選択中: なし</h2>
+                <h2 id="selectedTitle" class="game-section-title">選択中: なし</h2>
                 <button id="clearSelectionBtn" class="ghost-button compact" type="button">クリア</button>
               </div>
               <div id="selectedCards" class="card-row empty-row">未選択</div>
@@ -180,7 +189,7 @@
 
             <section id="compositePanel" class="composite-panel hidden">
               <div class="panel-heading-row">
-                <h2 id="compositeTitle">素因数場</h2>
+                <h2 id="compositeTitle" class="game-section-title">素因数場</h2>
                 <div class="button-row compact-ops">
                   <button id="compositeMulBtn" class="ghost-button compact" type="button">×</button>
                   <button id="compositePowBtn" class="ghost-button compact" type="button">^</button>
@@ -193,7 +202,7 @@
 
             <section class="assist-panel">
               <div class="panel-heading-row">
-                <h2>おすすめ</h2>
+                <h2 class="game-section-title">おすすめ</h2>
                 <div class="assist-actions">
                   <button id="assistRecommendedBtn" class="filter-chip active" type="button">おすすめ</button>
                   <button id="assistStrongBtn" class="filter-chip" type="button">強い順</button>
@@ -222,6 +231,6 @@
       </section>
     </main>
 
-    <script src="./app.js?v=neo-20260726-7"></script>
+    <script src="./app.js?v=neo-20260726-9"></script>
   </body>
 </html>
