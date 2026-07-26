@@ -57,6 +57,7 @@ const state = {
   compositeTokens: [],
   compositeJokerAssign: [],
   lastAssistCandidates: [],
+  remainingFinishExists: false,
   assistFilters: {
     target_scope: "all",
     limit_mode: "ten",
@@ -136,6 +137,7 @@ function bindElements() {
     "drawBtn",
     "passBtn",
     "handCards",
+    "remainingFinishNotice",
     "turnBadge",
     "logBox",
     "chatInput",
@@ -312,6 +314,10 @@ function handleMessage(msg) {
       break;
     case "prime_assist_result":
       state.lastAssistCandidates = msg.candidates || [];
+      state.remainingFinishExists = typeof msg.remaining_finish_exists === "boolean"
+        ? msg.remaining_finish_exists
+        : state.lastAssistCandidates.some(candidateFinishesRemaining);
+      renderHand();
       renderAssist();
       break;
     case "action_result":
@@ -672,9 +678,19 @@ function renderRoomChoice() {
   el.roomBadge.textContent = room.badge;
   el.roomHeading.textContent = room.roomHeading;
   if (state.connected && state.appMode === "setup") {
-    el.serverLabel.textContent = `既存サーバー / ${roomId} / ${count}人`;
-    el.serverLabel.classList.toggle("has-players", count > 0);
+    renderServerRoomStatus(roomId, count);
   }
+}
+
+function renderServerRoomStatus(roomId, count) {
+  const population = document.createElement("span");
+  population.className = "room-population";
+  population.classList.toggle("has-players", count > 0);
+  population.textContent = `${count}人`;
+  el.serverLabel.replaceChildren(
+    document.createTextNode(`既存サーバー / ${roomId} / `),
+    population,
+  );
 }
 
 function renderNextHint() {
@@ -702,6 +718,10 @@ function renderNextHint() {
 }
 
 function renderHand() {
+  el.remainingFinishNotice.classList.toggle(
+    "hidden",
+    !state.selectedCards.length || !state.remainingFinishExists,
+  );
   el.handCards.innerHTML = "";
   if (!state.hand.length) {
     setCardRowColumns(el.handCards, 1);
@@ -920,11 +940,37 @@ function renderAssist() {
 function assistTags(candidate) {
   const tags = [];
   if (candidate.kind === "composite") tags.push("合成");
+  if (candidate.special_effect === "cut") tags.push("カット");
+  if (candidate.special_effect === "revolution") tags.push("革命");
   if (candidate.field_count_match === false) tags.push("枚数注意");
-  if (candidate.finishes_remaining) tags.push("残り上がり");
+  if (candidateFinishesRemaining(candidate)) tags.push("残り上がり");
   if (candidate.finishes_hand) tags.push("上がり");
   if (candidate.trump) tags.push("切り札");
   return tags;
+}
+
+function candidateFinishesRemaining(candidate) {
+  if (candidate.finishes_remaining) return true;
+  const selectedIds = new Set([
+    ...state.selectedCards.map((card) => card.card_id),
+    ...state.compositeTokens
+      .filter((token) => token.kind === "card")
+      .map((token) => token.card_id),
+  ]);
+  if (!selectedIds.size) return false;
+
+  const remainingIds = new Set(
+    state.hand
+      .filter((card) => !selectedIds.has(card.card_id))
+      .map((card) => card.card_id),
+  );
+  const usedIds = new Set([
+    ...(candidate.cards || []).map((card) => card.card_id),
+    ...(((candidate.composite || {}).cards) || []).map((card) => card.card_id),
+  ]);
+  return remainingIds.size > 0
+    && remainingIds.size === usedIds.size
+    && [...remainingIds].every((cardId) => usedIds.has(cardId));
 }
 
 function toggleCard(card, source = "hand") {
@@ -1123,6 +1169,8 @@ function compositeConsumeCards() {
 
 function scheduleAssist() {
   if (state.assistTimer) clearTimeout(state.assistTimer);
+  state.remainingFinishExists = false;
+  if (el.remainingFinishNotice) el.remainingFinishNotice.classList.add("hidden");
   state.assistTimer = setTimeout(requestAssist, 220);
 }
 
@@ -1240,7 +1288,6 @@ function setConnection(kind, label, detail) {
   if (kind === "online") el.connectionDot.classList.add("online");
   if (kind === "error") el.connectionDot.classList.add("error");
   el.connectionLabel.textContent = label;
-  el.serverLabel.classList.remove("has-players");
   el.serverLabel.textContent = detail;
 }
 
