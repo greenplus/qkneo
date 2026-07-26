@@ -37,6 +37,10 @@ select {
   font: inherit;
 }
 
+a {
+  color: var(--green-dark);
+}
+
 button {
   cursor: pointer;
   touch-action: manipulation;
@@ -284,6 +288,22 @@ textarea,
   color: var(--ink);
 }
 
+.text-link {
+  color: var(--green-dark);
+  font-size: 0.86rem;
+  font-weight: 850;
+  text-underline-offset: 3px;
+}
+
+.help-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  margin-top: 18px;
+  text-decoration: none;
+}
+
 .compact {
   min-height: 34px;
   padding: 0 10px;
@@ -423,6 +443,25 @@ textarea,
 
 .register-panel:not([open]) > :not(summary) {
   display: none;
+}
+
+.register-help-copy {
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.65;
+}
+
+.register-help-copy .text-link {
+  display: inline-block;
+  margin-left: 4px;
+}
+
+code {
+  border-radius: 4px;
+  background: #eef3f1;
+  padding: 0.12em 0.35em;
+  color: var(--green-dark);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
 }
 
 textarea {
@@ -879,6 +918,159 @@ body[data-mode="playing"] .log-box {
   padding: 0 10px;
 }
 
+.help-shell {
+  width: min(100%, 1040px);
+  margin: 0 auto;
+  padding: 18px 14px 48px;
+}
+
+.help-header {
+  display: grid;
+  gap: 14px;
+  padding: 18px 4px 24px;
+}
+
+.help-header h1 {
+  font-size: clamp(2rem, 7vw, 4rem);
+}
+
+.help-header-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.help-header-actions a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  padding: 0 12px;
+  color: var(--ink);
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.help-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.help-toc {
+  display: grid;
+  gap: 4px;
+}
+
+.help-toc h2 {
+  margin-bottom: 7px;
+}
+
+.help-toc a {
+  border-radius: 6px;
+  padding: 8px 9px;
+  color: var(--ink);
+  font-size: 0.88rem;
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.help-toc a:hover,
+.help-toc a:focus-visible {
+  background: var(--mint);
+  color: var(--green-dark);
+}
+
+.help-content {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.help-section {
+  scroll-margin-top: 16px;
+}
+
+.help-section h2 {
+  color: var(--green-dark);
+  font-size: 1.22rem;
+}
+
+.help-section h3 {
+  margin: 22px 0 8px;
+  font-size: 1rem;
+}
+
+.help-section p,
+.help-section li {
+  line-height: 1.75;
+}
+
+.help-section p + p {
+  margin-top: 10px;
+}
+
+.help-section ul,
+.help-section ol {
+  margin: 10px 0 0;
+  padding-left: 1.4em;
+}
+
+.help-example,
+.help-note {
+  margin-top: 14px;
+  border-left: 4px solid var(--green);
+  border-radius: 6px;
+  background: var(--mint);
+  padding: 12px 14px;
+}
+
+.help-note {
+  border-left-color: #d29b14;
+  background: var(--yellow);
+}
+
+.help-example pre {
+  margin: 8px 0 0;
+  overflow-x: auto;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  line-height: 1.65;
+  white-space: pre-wrap;
+}
+
+.help-table-wrap {
+  overflow-x: auto;
+}
+
+.help-table {
+  width: 100%;
+  margin-top: 10px;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.help-table th,
+.help-table td {
+  border-bottom: 1px solid var(--line);
+  padding: 9px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.help-table th {
+  color: var(--green-dark);
+  font-weight: 850;
+}
+
+.help-footer {
+  padding: 24px 4px 0;
+  color: var(--muted);
+  text-align: center;
+}
+
 @media (max-width: 760px) {
   .connection-card {
     min-width: 0;
@@ -916,4 +1108,15 @@ body[data-mode="playing"] .log-box {
     padding: 8px;
   }
 
+}
+
+@media (min-width: 820px) {
+  .help-layout {
+    grid-template-columns: 220px minmax(0, 1fr);
+  }
+
+  .help-toc {
+    position: sticky;
+    top: 14px;
+  }
 }

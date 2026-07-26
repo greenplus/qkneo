@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>遊び方・ヘルプ | 素数大富豪NEO</title>
+    <link rel="stylesheet" href="./styles.css?v=neo-help-20260726-1" />
+  </head>
+  <body>
+    <main class="help-shell">
+      <header class="help-header" id="top">
+        <div>
+          <p class="eyebrow">Prime Daifugo NEO Guide</p>
+          <h1>遊び方・ヘルプ</h1>
+          <p class="lead">
+            基本ルール、アシスト、HNPチャレンジ、登録リストの使い方をまとめています。
+            初めての場合は「まず遊ぶには」から順に読んでください。
+          </p>
+        </div>
+        <div class="help-header-actions">
+          <a href="./index.html">ゲーム画面へ</a>
+          <a href="#registration">登録方法を見る</a>
+        </div>
+      </header>
+
+      <div class="help-layout">
+        <nav class="panel help-toc" aria-label="ヘルプ目次">
+          <h2>目次</h2>
+          <a href="#quick-start">1. まず遊ぶには</a>
+          <a href="#rules">2. 基本ルール</a>
+          <a href="#assist">3. アシスト</a>
+          <a href="#hnp">4. HNPチャレンジ</a>
+          <a href="#registration">5. 登録リスト</a>
+          <a href="#composite">6. 合成数出し</a>
+          <a href="#special">7. 特殊な役</a>
+          <a href="#rooms">8. 初級と上級</a>
+        </nav>
+
+        <div class="help-content">
+          <section id="quick-start" class="panel help-section">
+            <h2>1. まず遊ぶには</h2>
+            <ol>
+              <li>表示名と部屋を選んで入室します。</li>
+              <li>「対戦に参加」を押します。一人で試す場合は「CPU追加」も押します。</li>
+              <li>サンプル登録が読み込まれたら「開始」を押します。</li>
+              <li>自分の番に「おすすめ」の候補を押し、選ばれた札を確認して「出す」を押します。</li>
+            </ol>
+            <div class="help-note">
+              初めての場合は、手札7枚・ペナルティ1枚の「初級」とCPU対戦がおすすめです。
+              登録リストは最初から用意されているため、素数を暗記していなくても遊べます。
+            </div>
+          </section>
+
+          <section id="rules" class="panel help-section">
+            <h2>2. 基本ルール</h2>
+            <p>
+              手札を並べて素数を作り、先にすべての札を出し切るゲームです。
+              カードは選んだ順につながり、たとえば3と7なら「37」、QとKなら「1213」になります。
+            </p>
+
+            <div class="help-table-wrap">
+              <table class="help-table">
+                <thead>
+                  <tr>
+                    <th scope="col">カード</th>
+                    <th scope="col">数</th>
+                    <th scope="col">入力・表示</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td>A</td><td>1</td><td>登録時は <code>1</code></td></tr>
+                  <tr><td>2〜9</td><td>そのまま</td><td><code>2</code>〜<code>9</code></td></tr>
+                  <tr><td>T</td><td>10</td><td><code>T</code></td></tr>
+                  <tr><td>J</td><td>11</td><td><code>J</code></td></tr>
+                  <tr><td>Q</td><td>12</td><td><code>Q</code></td></tr>
+                  <tr><td>K</td><td>13</td><td><code>K</code></td></tr>
+                  <tr><td>X</td><td>ジョーカー</td><td>単独なら∞、複数枚なら値を指定</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <h3>自分の番にできること</h3>
+            <ul>
+              <li>場が空なら、好きな枚数で使用可能な素数・合成数を出せます。</li>
+              <li>場に札があるときは、場と同じ枚数で、場より大きい数を出します。</li>
+              <li>ラマヌジャン革命中は大小が逆になり、場より小さい数を出します。</li>
+              <li>1ターンに1枚だけドローできます。ドロー後も、札を出すかパスできます。</li>
+              <li>パスすると場が流れ、次のプレイヤーが新しい場を始めます。</li>
+            </ul>
+
+            <p>
+              NEOの登録制限ルールでは、原則として自分の登録リストにある数だけを使用できます。
+              判定に失敗するとペナルティカードを引き、場が流れます。
+            </p>
+          </section>
+
+          <section id="assist" class="panel help-section">
+            <h2>3. アシストの使い方</h2>
+            <p>
+              アシストは、手札と自分の登録リストから作れる手を探す機能です。
+              候補を押すと、見せ札、ジョーカーの値、合成数の材料札まで自動で選択されます。
+            </p>
+            <ul>
+              <li><strong>おすすめ：</strong>上がりや次の上がり、切り札の強さと温存を考慮し、各枚数から候補を選びます。</li>
+              <li><strong>強い順：</strong>現在出せる候補を、強いものから並べます。</li>
+              <li><strong>弱い順：</strong>現在出せる候補を、弱いものから並べます。</li>
+              <li><strong>残り：</strong>現在選択している札を除き、残った手札だけで候補を探します。</li>
+              <li><strong>増やす：</strong>強い順・弱い順で表示する候補数を増やします。</li>
+            </ul>
+            <p>
+              札を選択したとき、残った手札だけで一手上がりができれば「残り上がりあり」と表示されます。
+              アシスト候補に出ない登録外の手を試したい場合は、手札を自分で選択してください。
+            </p>
+
+            <h3>候補に付くタグ</h3>
+            <div class="help-table-wrap">
+              <table class="help-table">
+                <tbody>
+                  <tr><th scope="row">上がり</th><td>この候補で現在の手札を使い切れます。</td></tr>
+                  <tr><th scope="row">残り上がり</th><td>現在選択中の札を先に出せれば、残りを一手で上がれます。</td></tr>
+                  <tr><th scope="row">次で上がり</th><td>Xまたは57で場を流したあと、残りを一手で上がれます。</td></tr>
+                  <tr><th scope="row">∞</th><td>単独ジョーカーです。</td></tr>
+                  <tr><th scope="row">カット</th><td>57のグロタンカットです。</td></tr>
+                  <tr><th scope="row">革命</th><td>1729のラマヌジャン革命です。</td></tr>
+                  <tr><th scope="row">合成</th><td>合成数出しの候補です。</td></tr>
+                  <tr><th scope="row">枚数注意</th><td>現在の場とは見せ札の枚数が合っていません。</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section id="hnp" class="panel help-section">
+            <h2>4. HNPチャレンジ</h2>
+            <p>
+              登録制限のある部屋で、登録されていない2枚以上の札を素数として出そうとすると、
+              「出す」ボタンが「HNPチャレンジ」に変わります。
+            </p>
+            <p>
+              HNPでは、選んだ札の並び順をサーバーが決めます。現在の場に出せる並びだけを集め、
+              素数になりやすい末尾を作れる並びがあればその集合を優先し、最後はランダムに1つ選びます。
+              選んだ札は変わりませんが、並び順はクリックした順と異なることがあります。
+            </p>
+            <ul>
+              <li>生成された数が素数なら成功し、その札を出せます。</li>
+              <li>合成数になった場合は失敗となり、通常のペナルティを受けます。</li>
+              <li>場に合法な並びがない場合、チャレンジは開始されません。</li>
+              <li>1枚出し、合成数出し、X・57・1729はHNPの対象外です。</li>
+            </ul>
+            <div class="help-note">
+              アシストは登録済みの手を提案する機能です。HNPを試すときは、候補ではなく手札を直接選んでください。
+            </div>
+          </section>
+
+          <section id="registration" class="panel help-section">
+            <h2>5. 登録リスト</h2>
+            <p>
+              登録リストは「自分が使用できる数」と「アシストが探す数」を設定する場所です。
+              プレイヤーごとに別々のリストを持ち、相手とは共有されません。
+            </p>
+            <p>
+              最初は部屋に合わせたサンプルが読み込まれます。そのまま遊ぶことも、
+              「サンプル読込」で別のリストに替えることもできます。編集後は「登録する」を押してください。
+              ゲーム開始後は登録内容を変更できません。
+            </p>
+
+            <h3>素数の入力</h3>
+            <p>空白・改行・カンマで区切って入力します。大文字と小文字はどちらでも使えます。</p>
+            <div class="help-example">
+              <strong>入力例</strong>
+              <pre>2 3 5 7
+13,17,19
+137
+QK
+12K</pre>
+            </div>
+            <ul>
+              <li>Aは <code>1</code> と入力します。</li>
+              <li><code>T/J/Q/K</code> は、それぞれ10/11/12/13として使えます。</li>
+              <li><code>X</code> は登録には使いません。ジョーカーの値は出すときに指定します。</li>
+              <li>互換表記の <code>0</code> は10のカードとして扱い、ジョーカーにはなりません。</li>
+              <li>素数ではない値、認識できない表記は登録されません。</li>
+            </ul>
+            <p>
+              登録は最終的な数値を基準にします。<code>QK</code>、<code>12K</code>、
+              <code>1213</code> はすべて1213の登録として扱われます。同じ値の重複は1件にまとめられます。
+            </p>
+
+            <h3>合成数の入力</h3>
+            <p>
+              合成数は原則として1行に1件ずつ入力します。左側に場へ見せる数、
+              右側に材料札で作る式を書きます。
+            </p>
+            <div class="help-example">
+              <strong>入力例</strong>
+              <pre>12=2*2*3
+96=2^5*3
+Q=2^2*3
+KQ=2^5*41</pre>
+            </div>
+            <p>
+              式で使える演算子は掛け算の <code>*</code> と、べき乗の <code>^</code> です。
+              足し算、引き算、割り算、括弧は使えません。左側の数と式の計算結果は一致させてください。
+            </p>
+            <p>
+              <code>12</code> や <code>96</code> のように値だけを入力すると、素因数分解から式を自動生成します。
+              使いたい材料札を指定したい場合は、式まで入力してください。
+            </p>
+
+            <h3>保存と上限</h3>
+            <ul>
+              <li>登録内容は現在の接続中だけ保持され、ページの再読み込みや再接続後には残りません。</li>
+              <li>ゲーム開始には、素数または合成数を1件以上登録する必要があります。</li>
+              <li>素数・合成数は、それぞれ最大20,000種類です。</li>
+              <li>1つの表記は最大72文字、各入力欄の全体は約200,000文字までです。</li>
+              <li>無効な項目が混ざっていても、正常に読み取れた項目は登録されます。</li>
+              <li>ファイルアップロードはありません。素数欄には <code>prime_value</code> 列を持つCSV本文を貼り付けられます。</li>
+            </ul>
+          </section>
+
+          <section id="composite" class="panel help-section">
+            <h2>6. 合成数出し</h2>
+            <p>
+              合成数出しでは「場に見せる札」と「式の材料として消費する札」の両方を使います。
+              同じ札を見せ札と材料札の両方に使うことはできません。
+            </p>
+            <div class="help-example">
+              <strong><code>Q=2^2*3</code> の場合</strong>
+              <p>場にはQを1枚見せ、材料として2・2・3を使います。場の枚数として数えるのはQの1枚だけです。</p>
+            </div>
+            <ul>
+              <li>式の計算結果と見せ札の数が一致する必要があります。</li>
+              <li>見せ札の合成数が自分の登録リストに含まれている必要があります。</li>
+              <li>成功すると材料札は山札の下へ戻り、見せ札だけが場に残ります。</li>
+              <li>上級で失敗した場合、見せ札と材料札を合わせた枚数がペナルティの基準になります。</li>
+            </ul>
+            <p>
+              合成数のアシスト候補を押すと、見せ札と材料札が自動で別々の欄に入ります。
+              手動で出す場合は、「合成数出し」を押してから材料札と演算子を選んでください。
+            </p>
+          </section>
+
+          <section id="special" class="panel help-section">
+            <h2>7. 特殊な役</h2>
+            <div class="help-table-wrap">
+              <table class="help-table">
+                <thead>
+                  <tr>
+                    <th scope="col">役</th>
+                    <th scope="col">効果</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <th scope="row">X（∞）</th>
+                    <td>ジョーカー1枚出し。場が空、または場が1枚のときに使えます。場を流し、自分の手番を続けます。</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">57</th>
+                    <td>グロタンカット。場を流し、自分の手番を続けます。</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">1729</th>
+                    <td>ラマヌジャン革命。以後の大小を反転します。もう一度出すと通常に戻ります。</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p>
+              X・57・1729は登録されていなくても使用できます。複数枚の中でジョーカーを使う場合は、
+              ジョーカーが表す0〜13の値を指定します。複数枚出しで∞は指定できません。
+            </p>
+          </section>
+
+          <section id="rooms" class="panel help-section">
+            <h2>8. 初級と上級の違い</h2>
+            <div class="help-table-wrap">
+              <table class="help-table">
+                <thead>
+                  <tr>
+                    <th scope="col">部屋</th>
+                    <th scope="col">手札・デッキ</th>
+                    <th scope="col">失敗時</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <th scope="row">初級</th>
+                    <td>7枚。偶数札を減らしたデッキ。</td>
+                    <td>ペナルティは常に1枚。</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">上級</th>
+                    <td>11枚。通常の54枚デッキ。</td>
+                    <td>使用した札の枚数が基準。合成数は材料札も含みます。</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <footer class="help-footer">
+        <a class="text-link" href="#top">ページ上部へ戻る</a>
+      </footer>
+    </main>
+  </body>
+</html>

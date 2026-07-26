@@ -71,6 +71,7 @@ const state = {
   cpuRequestedForFlow: false,
   startRequestedForFlow: false,
   assistTimer: null,
+  assistRequestVersion: 0,
 };
 
 const el = {};
@@ -315,6 +316,12 @@ function handleMessage(msg) {
       scheduleAssist();
       break;
     case "prime_assist_result":
+      if (
+        Number.isInteger(msg.assist_request_id)
+        && msg.assist_request_id !== state.assistRequestVersion
+      ) {
+        break;
+      }
       state.lastAssistCandidates = msg.candidates || [];
       state.remainingFinishExists = typeof msg.remaining_finish_exists === "boolean"
         ? msg.remaining_finish_exists
@@ -1045,6 +1052,7 @@ function applyAssistCandidate(candidate) {
   }
   normalizeJokerRanks();
   normalizeCompositeJokerRanks();
+  scheduleAssist(0);
   renderAll();
 }
 
@@ -1170,18 +1178,22 @@ function compositeConsumeCards() {
     .filter(Boolean);
 }
 
-function scheduleAssist() {
+function scheduleAssist(delay = 220) {
   if (state.assistTimer) clearTimeout(state.assistTimer);
+  state.assistRequestVersion += 1;
+  const requestVersion = state.assistRequestVersion;
   state.remainingFinishExists = false;
   if (el.remainingFinishNotice) el.remainingFinishNotice.classList.add("hidden");
-  state.assistTimer = setTimeout(requestAssist, 220);
+  state.assistTimer = setTimeout(() => requestAssist(requestVersion), delay);
 }
 
-function requestAssist() {
+function requestAssist(requestVersion = state.assistRequestVersion) {
   state.assistTimer = null;
+  if (requestVersion !== state.assistRequestVersion) return;
   if (state.roomState !== "playing" || !state.hand.length || !state.roomJoined) return;
   send({
     type: "get_prime_assist",
+    assist_request_id: requestVersion,
     selected_card_ids: state.selectedCards.map((card) => card.card_id),
     composite_card_ids: state.compositeTokens
       .filter((token) => token.kind === "card")
