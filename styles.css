@@ -125,7 +125,7 @@ h2 {
   font-size: 0.86rem;
 }
 
-.connection-card p.has-players {
+.room-population.has-players {
   color: var(--green-dark);
   font-weight: 850;
 }
@@ -346,6 +346,20 @@ textarea,
 .room-title-row,
 .panel-heading-row {
   justify-content: space-between;
+}
+
+.hand-heading-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.remaining-finish-notice {
+  color: var(--green-dark);
+  font-size: 0.72rem;
+  font-weight: 850;
+  white-space: nowrap;
 }
 
 .next-hint {
@@ -734,13 +748,12 @@ body[data-mode="playing"] .status-panel {
   padding: 8px;
 }
 
-body[data-mode="playing"] .room-title-row .eyebrow,
-body[data-mode="playing"] .room-title-row h2 {
+body[data-mode="playing"] .next-hint {
   display: none;
 }
 
-body[data-mode="playing"] .next-hint {
-  display: none;
+body[data-mode="playing"] .room-title-row h2 {
+  font-size: 0.95rem;
 }
 
 body[data-mode="playing"] .field-strip {

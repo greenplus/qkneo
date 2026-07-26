@@ -3,14 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>素数大富豪NEO アシスト版</title>
-    <link rel="stylesheet" href="./styles.css?v=neo-20260726-5" />
+    <title>素数大富豪NEO β版</title>
+    <link rel="stylesheet" href="./styles.css?v=neo-20260726-6" />
   </head>
   <body>
     <main class="app-shell">
       <section id="topBand" class="top-band">
         <div>
-          <p class="eyebrow">初級 / 上級 選択プロトタイプ</p>
+          <p class="eyebrow">初級 / 上級 選択 β版</p>
           <h1>素数大富豪NEO</h1>
           <p class="lead">
             登録済みの数とアシスト候補を使って、素数を知らなくてもまず1手出せる対戦UIです。
@@ -57,14 +57,14 @@
         <div class="panel guide-panel">
           <h2>操作方法</h2>
           <ol class="plain-steps">
-            <li>入室後に「対戦に参加」を押す</li>
-            <li>CPUと試す場合は「CPU追加」を押す</li>
-            <li>開始後は手札かおすすめを選んで出す</li>
+            <li>入室後に「対戦に参加」。一人で試すなら「CPU追加」</li>
+            <li>「おすすめ」には、登録済みで今出せる素数・合成数だけが表示されます</li>
+            <li>候補を押すか手札を選び、「出す」。登録外の2枚以上はHNPチャレンジになります</li>
           </ol>
           <div class="mini-rules">
             <span>場より大きい数</span>
             <span>同じ枚数</span>
-            <span>登録リスト内ならOK</span>
+            <span>HNPは合法な並びからランダム挑戦</span>
           </div>
         </div>
       </section>
@@ -141,7 +141,10 @@
             <section class="hand-panel">
               <div class="panel-heading-row">
                 <h2>手札</h2>
-                <span id="turnBadge" class="turn-badge">待機中</span>
+                <div class="hand-heading-status">
+                  <span id="remainingFinishNotice" class="remaining-finish-notice hidden">残り上がりあり</span>
+                  <span id="turnBadge" class="turn-badge">待機中</span>
+                </div>
               </div>
               <div id="handCards" class="card-row empty-row">ゲーム開始後に表示されます</div>
             </section>
@@ -204,6 +207,6 @@
       </section>
     </main>
 
-    <script src="./app.js?v=neo-20260726-5"></script>
+    <script src="./app.js?v=neo-20260726-6"></script>
   </body>
 </html>
