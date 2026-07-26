@@ -61,7 +61,7 @@ const state = {
   assistFilters: {
     target_scope: "all",
     limit_mode: "ten",
-    order: "strong",
+    order: "recommended",
     count_scope: "field",
     card_count: "1",
     face_mode: "letters",
@@ -116,6 +116,7 @@ function bindElements() {
     "deckCount",
     "myHandCount",
     "opponentCounts",
+    "assistRecommendedBtn",
     "assistStrongBtn",
     "assistEasyBtn",
     "assistRestBtn",
@@ -173,6 +174,7 @@ function bindEvents() {
   el.chatInput.addEventListener("keydown", (event) => {
     if (event.key === "Enter") sendChat();
   });
+  el.assistRecommendedBtn.addEventListener("click", () => setAssistOrder("recommended"));
   el.assistStrongBtn.addEventListener("click", () => setAssistOrder("strong"));
   el.assistEasyBtn.addEventListener("click", () => setAssistOrder("weak"));
   el.assistRestBtn.addEventListener("click", toggleAssistRest);
@@ -887,10 +889,13 @@ function renderCompositeJokerControls() {
 }
 
 function renderAssist() {
+  const recommendationMode = state.assistFilters.order === "recommended";
+  el.assistRecommendedBtn.classList.toggle("active", recommendationMode);
   el.assistStrongBtn.classList.toggle("active", state.assistFilters.order === "strong");
   el.assistEasyBtn.classList.toggle("active", state.assistFilters.order === "weak");
   el.assistRestBtn.classList.toggle("active", state.assistFilters.target_scope === "unselected");
   el.assistRestBtn.disabled = !state.selectedCards.length;
+  el.assistManyBtn.classList.toggle("hidden", recommendationMode);
   el.assistManyBtn.classList.toggle("active", state.assistFilters.limit_mode === "fifty");
   el.assistManyBtn.textContent = state.assistFilters.limit_mode === "fifty" ? "減らす" : "増やす";
   el.assistManyBtn.title = state.assistFilters.limit_mode === "fifty" ? "候補: 多め" : "候補: 少なめ";
@@ -909,9 +914,6 @@ function renderAssist() {
   state.lastAssistCandidates.forEach((candidate, index) => {
     const btn = document.createElement("button");
     btn.className = "assist-card";
-    if (candidate.recommended) {
-      btn.classList.add("recommended");
-    }
     btn.type = "button";
 
     const number = document.createElement("span");
@@ -940,12 +942,13 @@ function renderAssist() {
 function assistTags(candidate) {
   const tags = [];
   if (candidate.kind === "composite") tags.push("合成");
+  if (candidate.special_effect === "infinity") tags.push("∞");
   if (candidate.special_effect === "cut") tags.push("カット");
   if (candidate.special_effect === "revolution") tags.push("革命");
   if (candidate.field_count_match === false) tags.push("枚数注意");
+  if (candidate.next_finish) tags.push("次で上がり");
   if (candidateFinishesRemaining(candidate)) tags.push("残り上がり");
   if (candidate.finishes_hand) tags.push("上がり");
-  if (candidate.trump) tags.push("切り札");
   return tags;
 }
 

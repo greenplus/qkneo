@@ -571,8 +571,7 @@ textarea {
 }
 
 .assist-card:hover,
-.assist-card.selected,
-.assist-card.recommended {
+.assist-card.selected {
   border-color: var(--green);
   background: var(--mint);
 }
