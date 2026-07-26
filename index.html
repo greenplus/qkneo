@@ -4,14 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>素数大富豪NEO β版</title>
-    <link rel="stylesheet" href="./styles.css?v=neo-20260726-9" />
+    <link rel="stylesheet" href="./styles.css?v=neo-20260727-10" />
   </head>
   <body>
     <main class="app-shell">
       <section id="topBand" class="top-band">
         <div>
-          <p class="eyebrow">初級 / 上級 選択 β版</p>
-          <h1>素数大富豪NEO</h1>
+          <h1>素数大富豪NEO β版</h1>
           <p class="lead">
             登録済みの数とアシスト候補を使って、素数を知らなくてもまず1手出せる対戦UIです。
           </p>
@@ -56,10 +55,7 @@
         </div>
 
         <div class="panel guide-panel">
-          <div class="panel-heading-row">
-            <h2>3分でわかる遊び方</h2>
-            <a class="text-link" href="./help.html" target="_blank" rel="noopener">詳しいヘルプ</a>
-          </div>
+          <h2>遊び方</h2>
           <ol class="plain-steps">
             <li>手札を並べて素数を作り、先に手札を0枚にしたら勝ち</li>
             <li>場と同じ枚数で、場より大きい数を出します</li>
@@ -98,8 +94,8 @@
                 <dd id="playerList">読み込み中</dd>
               </div>
               <div>
-                <dt>手番</dt>
-                <dd id="turnLabel">未開始</dd>
+                <dt>観戦</dt>
+                <dd id="watcherList">なし</dd>
               </div>
             </dl>
             <div class="button-row">
@@ -120,9 +116,6 @@
 
           <details id="registerPanel" class="panel register-panel">
             <summary>登録リスト</summary>
-            <div class="panel-heading-row">
-              <h2>登録リスト</h2>
-            </div>
             <p class="register-help-copy">
               素数は空白・改行・カンマ区切り、合成数は
               <code>12=2*2*3</code> の形式で入力します。サンプルのままでも遊べます。
@@ -154,8 +147,8 @@
               <span id="opponentLabel">相手</span>
               <strong id="opponentCounts">-</strong>
             </div>
-            <div class="field-zone">
-              <h2 class="game-section-title">場</h2>
+            <div id="fieldZone" class="field-zone">
+              <h2 class="game-section-title">場：<span id="fieldNumber">なし</span></h2>
               <div id="fieldCards" class="field-cards">まだ何も出ていません</div>
             </div>
           </div>
@@ -202,7 +195,7 @@
 
             <section class="assist-panel">
               <div class="panel-heading-row">
-                <h2 class="game-section-title">おすすめ</h2>
+                <h2 class="game-section-title">候補</h2>
                 <div class="assist-actions">
                   <button id="assistRecommendedBtn" class="filter-chip active" type="button">おすすめ</button>
                   <button id="assistStrongBtn" class="filter-chip" type="button">強い順</button>
@@ -220,7 +213,7 @@
 
         <aside class="log-column">
           <div class="panel log-panel">
-            <h2>チャット</h2>
+            <h2 class="game-section-title">チャット</h2>
             <div class="chat-row">
               <input id="chatInput" placeholder="短いメッセージ" />
               <button id="chatBtn" class="ghost-button compact" type="button">送信</button>
@@ -229,8 +222,11 @@
           </div>
         </aside>
       </section>
+      <footer class="site-footer">
+        <a href="https://greenplus.github.io/">green+の無人島</a>
+      </footer>
     </main>
 
-    <script src="./app.js?v=neo-20260726-9"></script>
+    <script src="./app.js?v=neo-20260727-10"></script>
   </body>
 </html>

@@ -50,9 +50,12 @@ const state = {
   registeredPrimeValues: new Set(),
   sampleOptions: [],
   deckCount: "-",
+  fieldNumber: "",
+  revolution: false,
   fieldCards: [],
   handCounts: [],
   flowPreviewCards: [],
+  flowPreviewNumber: "",
   flowPreviewTimer: null,
   hand: [],
   selectedCards: [],
@@ -107,7 +110,7 @@ function bindElements() {
     "nextHint",
     "playStatus",
     "playerList",
-    "turnLabel",
+    "watcherList",
     "readyBtn",
     "addCpuBtn",
     "startBtn",
@@ -123,6 +126,8 @@ function bindElements() {
     "saveRegisterBtn",
     "registerStatus",
     "registerLimitNote",
+    "fieldZone",
+    "fieldNumber",
     "fieldCards",
     "deckCount",
     "myHandMetric",
@@ -358,7 +363,7 @@ function handleMessage(msg) {
       break;
     case "action_result":
       if (msg.action === "field_flow") {
-        showFlowPreview(msg.played_cards || []);
+        showFlowPreview(msg.played_cards || [], msg.number);
       }
       break;
     case "penalty":
@@ -622,35 +627,33 @@ function readableSampleLabel(option) {
 
 function renderPlayers(players, waitingCount) {
   state.players = players;
-  const parts = players.map(playerListLabel);
-  el.playerList.textContent = parts.length ? parts.join("、") : "まだ誰もいません";
+  const participants = players
+    .filter((player) => player.status === "waiting")
+    .map(playerLabel);
+  const watchers = players
+    .filter((player) => player.status !== "waiting")
+    .map(playerLabel);
+  el.playerList.textContent = participants.length ? participants.join("、") : "なし";
+  el.watcherList.textContent = watchers.length ? watchers.join("、") : "なし";
+  el.playerList.title = participants.join("、");
+  el.watcherList.title = watchers.join("、");
   if (waitingCount !== null) {
     const canStart = state.isWaiting && (waitingCount === 1 || waitingCount === 2);
     el.startBtn.disabled = !canStart;
   }
 }
 
-function playerListLabel(player) {
-  const label = playerLabel(player);
-  if (state.roomState === "playing") return label;
-  return player.status === "waiting" ? label : `${label}(観戦)`;
-}
-
 function playerLabel(player) {
-  if (player.id === state.playerId) return "自分";
+  const name = player.name || (player.is_cpu ? "CPU" : "プレイヤー");
+  if (player.id === state.playerId) return `${name}（自分）`;
   if (player.is_cpu) return player.name || "CPU";
-  return player.name || "相手";
-}
-
-function turnLabel() {
-  if (!state.currentTurn) return "未開始";
-  const player = state.players.find((item) => item.name === state.currentTurn);
-  if (player) return playerLabel(player);
-  return state.currentTurn === state.playerName ? "自分" : state.currentTurn;
+  return name;
 }
 
 function renderField(msg) {
   state.deckCount = String(msg.deck_count ?? "-");
+  state.fieldNumber = msg.field_number == null ? "" : String(msg.field_number);
+  state.revolution = Boolean(msg.revolution);
   state.fieldCards = msg.field || [];
   state.handCounts = msg.hand_counts || [];
   if (state.fieldCards.length) clearFlowPreview(false);
@@ -663,20 +666,32 @@ function renderFieldCards() {
   const field = state.fieldCards.length ? state.fieldCards : state.flowPreviewCards;
   const isPreview = !state.fieldCards.length && state.flowPreviewCards.length;
   el.fieldCards.innerHTML = "";
+  el.fieldNumber.textContent = isPreview
+    ? displayFieldNumber(state.flowPreviewNumber)
+    : displayFieldNumber(state.fieldNumber);
+  el.fieldZone.classList.toggle("revolution", state.revolution);
   if (!field.length) {
+    setCardRowColumns(el.fieldCards, 1);
     el.fieldCards.textContent = "まだ何も出ていません";
     el.fieldCards.classList.add("empty");
     el.fieldCards.classList.remove("flow-preview");
   } else {
+    setCardRowColumns(el.fieldCards, field.length);
     el.fieldCards.classList.remove("empty");
     el.fieldCards.classList.toggle("flow-preview", isPreview);
     field.forEach((card) => el.fieldCards.appendChild(cardButton(card, { staticOnly: true, field: true })));
   }
 }
 
-function showFlowPreview(cards) {
+function displayFieldNumber(number) {
+  if (number === "X") return "∞";
+  return number === "" || number == null ? "なし" : String(number);
+}
+
+function showFlowPreview(cards, number = "") {
   if (!cards.length) return;
   state.flowPreviewCards = cards;
+  state.flowPreviewNumber = number == null ? "" : String(number);
   if (state.flowPreviewTimer) clearTimeout(state.flowPreviewTimer);
   renderFieldCards();
   state.flowPreviewTimer = setTimeout(() => clearFlowPreview(true), 1100);
@@ -686,6 +701,7 @@ function clearFlowPreview(shouldRender = true) {
   if (state.flowPreviewTimer) clearTimeout(state.flowPreviewTimer);
   state.flowPreviewTimer = null;
   state.flowPreviewCards = [];
+  state.flowPreviewNumber = "";
   if (shouldRender) renderFieldCards();
 }
 
@@ -755,7 +771,6 @@ function renderAll() {
       ? "対戦中"
       : "対戦待ち"
     : "観戦中";
-  el.turnLabel.textContent = turnLabel();
   el.readyBtn.textContent = state.isWaiting ? "待機をやめる" : "対戦に参加";
   el.readyBtn.disabled = state.roomState === "playing";
   el.addCpuBtn.textContent = state.currentRoomHasCpu ? "CPU退出" : "CPU追加";
@@ -773,9 +788,19 @@ function renderAll() {
   el.compositeModeBtn.classList.toggle("hidden", state.compositeMode);
   el.drawBtn.disabled = !isMyTurn();
   el.passBtn.disabled = !isMyTurn();
-  el.turnBadge.textContent = isMyTurn() ? "あなたの番" : state.roomState === "playing" ? "相手の番" : "待機中";
+  const watchingTurn = state.roomState === "playing" && !state.isWaiting;
+  el.turnBadge.textContent = isMyTurn()
+    ? "あなたの番"
+    : watchingTurn
+      ? state.currentTurn
+        ? `${state.currentTurn}の番`
+        : "手番待ち"
+      : state.roomState === "playing"
+        ? "相手の番"
+        : "待機中";
   el.turnBadge.classList.toggle("ready", isMyTurn());
-  el.turnBadge.classList.toggle("alert", state.roomState === "playing" && !isMyTurn());
+  el.turnBadge.classList.toggle("alert", state.roomState === "playing" && state.isWaiting && !isMyTurn());
+  el.turnBadge.classList.toggle("spectating", watchingTurn);
   renderHandMetrics();
   renderNextHint();
   renderHand();
@@ -869,7 +894,9 @@ function renderNextHint() {
       ? "おすすめ候補を押すと、出すカードが自動で選ばれます。"
       : "候補がない場合はドローかパスを試してください。";
   } else {
-    el.nextHint.textContent = "相手の番です。場と手札を見ながら次の候補を待ちましょう。";
+    el.nextHint.textContent = state.isWaiting
+      ? "相手の番です。場と手札を見ながら次の候補を待ちましょう。"
+      : `${state.currentTurn || "プレイヤー"}の番です。`;
   }
 }
 

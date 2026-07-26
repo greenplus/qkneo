@@ -54,7 +54,7 @@ button:disabled {
 .app-shell {
   width: min(100%, 760px);
   margin: 0 auto;
-  padding: 10px;
+  padding: 8px;
 }
 
 @media (min-width: 900px) {
@@ -270,10 +270,10 @@ textarea,
 .secondary-button,
 .ghost-button,
 .filter-chip {
-  min-height: 40px;
+  min-height: 36px;
   border-radius: 8px;
   border: 1px solid transparent;
-  padding: 0 14px;
+  padding: 0 12px;
   font-weight: 800;
 }
 
@@ -315,9 +315,9 @@ textarea,
 }
 
 .compact {
-  min-height: 34px;
-  padding: 0 10px;
-  font-size: 0.86rem;
+  min-height: 30px;
+  padding: 0 9px;
+  font-size: 0.82rem;
 }
 
 .microcopy {
@@ -345,10 +345,10 @@ textarea,
 .small-status,
 .filter-chip {
   border-radius: 999px;
-  padding: 7px 10px;
+  padding: 5px 8px;
   background: #eef3f1;
   color: var(--muted);
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   font-weight: 800;
 }
 
@@ -371,6 +371,22 @@ textarea,
   display: grid;
   gap: 10px;
   min-width: 0;
+}
+
+.side-column {
+  gap: 0;
+}
+
+.side-column > .status-panel {
+  border-bottom-right-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.side-column > .register-panel {
+  border-top: 0;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  box-shadow: 0 10px 28px rgba(18, 45, 32, 0.06);
 }
 
 .room-title-row,
@@ -439,7 +455,7 @@ textarea,
 
 .status-list {
   display: grid;
-  grid-template-columns: 0.72fr 1.45fr 0.72fr;
+  grid-template-columns: 0.62fr 1.19fr 1.19fr;
   gap: 4px;
   margin: 0 0 8px;
 }
@@ -546,21 +562,43 @@ textarea {
 
 .field-zone {
   grid-column: 1 / -1;
+  transition: background-color 160ms ease, border-color 160ms ease;
 }
 
 .field-zone .game-section-title {
   margin-bottom: 4px;
 }
 
+.field-zone .game-section-title span {
+  overflow-wrap: anywhere;
+}
+
+.field-strip > .field-zone.revolution {
+  border-color: #344740;
+  background: #1c2924;
+  color: #f5faf7;
+}
+
+.field-zone.revolution .game-section-title {
+  color: #f5faf7;
+}
+
+.field-zone.revolution .field-cards.empty {
+  color: #b8c8c0;
+}
+
 .field-cards {
+  --card-width: 52px;
+  --card-height: 70px;
+  --card-gap: 8px;
   min-height: 36px;
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(1, var(--card-width));
   align-items: center;
-  flex-wrap: nowrap;
-  gap: 6px;
+  justify-content: start;
+  gap: var(--card-gap);
   min-width: 0;
   max-width: 100%;
-  overflow-x: auto;
   color: var(--ink);
 }
 
@@ -626,7 +664,7 @@ textarea {
 }
 
 .filter-chip {
-  min-height: 34px;
+  min-height: 30px;
   border: 1px solid var(--line);
 }
 
@@ -731,7 +769,7 @@ textarea {
   border-radius: 8px;
   background: #fff;
   color: var(--ink);
-  box-shadow: 0 5px 14px rgba(20, 40, 32, 0.1);
+  box-shadow: none;
   position: relative;
   overflow: hidden;
   padding: 0;
@@ -764,11 +802,8 @@ textarea {
 }
 
 .playing-card.assist-picked {
-  box-shadow: 0 0 0 4px var(--yellow);
-}
-
-.field-card {
-  box-shadow: none;
+  outline: 3px solid #e2bd27;
+  outline-offset: 0;
 }
 
 .composite-preview {
@@ -831,6 +866,11 @@ textarea {
 .turn-badge.alert {
   background: #fdecec;
   color: var(--red);
+}
+
+.turn-badge.spectating {
+  background: #e8f1fb;
+  color: #23649b;
 }
 
 .log-panel {
@@ -925,6 +965,10 @@ body[data-mode="playing"] .play-area {
   gap: 8px;
 }
 
+body[data-mode="playing"] .side-column {
+  gap: 0;
+}
+
 body[data-mode="playing"] .log-panel {
   min-height: 0;
 }
@@ -988,6 +1032,24 @@ body[data-mode="playing"] .log-box {
   min-width: 64px;
   flex: 0 0 auto;
   white-space: nowrap;
+}
+
+.site-footer {
+  padding: 22px 4px 10px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.site-footer a {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 750;
+  text-underline-offset: 3px;
+}
+
+body[data-mode="room"] .site-footer,
+body[data-mode="playing"] .site-footer {
+  display: none;
 }
 
 .help-shell {
@@ -1149,12 +1211,19 @@ body[data-mode="playing"] .log-box {
   }
 
   .card-row,
+  .field-cards,
   .playing-card {
     --card-width: 42px;
     --card-height: 60px;
   }
 
   .card-row {
+    --card-gap: 0px;
+    row-gap: 8px;
+    min-height: 66px;
+  }
+
+  .field-cards {
     --card-gap: 0px;
     row-gap: 8px;
     min-height: 66px;
@@ -1169,7 +1238,7 @@ body[data-mode="playing"] .log-box {
   }
 
   body[data-mode="playing"] .status-list {
-    grid-template-columns: 0.72fr 1.45fr 0.72fr;
+    grid-template-columns: 0.62fr 1.19fr 1.19fr;
   }
 
   body[data-mode="playing"] .selected-panel,
