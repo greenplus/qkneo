@@ -38,6 +38,7 @@
               <span>初級</span>
               <strong>7枚 / 偶数半減</strong>
               <small>ペナルティ1枚</small>
+              <small>登録は素数・合成数あわせて500件まで</small>
             </button>
             <button id="roomAdvancedBtn" class="room-choice-card" type="button" aria-pressed="false">
               <span>上級</span>
@@ -112,17 +113,18 @@
             <summary>登録リスト</summary>
             <div class="panel-heading-row">
               <h2>登録リスト</h2>
-              <button id="sampleBtn" class="ghost-button compact" type="button">サンプル読込</button>
             </div>
             <p class="register-help-copy">
               素数は空白・改行・カンマ区切り、合成数は
               <code>12=2*2*3</code> の形式で入力します。サンプルのままでも遊べます。
               <a class="text-link" href="./help.html#registration" target="_blank" rel="noopener">登録方法を詳しく見る</a>
             </p>
+            <p id="registerLimitNote" class="register-limit-note">初級は素数・合成数あわせて500件まで登録できます。</p>
             <select id="sampleSelect" class="full-select"></select>
             <textarea id="primeText" rows="6" spellcheck="false" placeholder="登録素数"></textarea>
             <textarea id="compositeText" rows="4" spellcheck="false" placeholder="登録合成数"></textarea>
             <div class="button-row">
+              <button id="sampleBtn" class="ghost-button compact" type="button">サンプル読込</button>
               <button id="saveRegisterBtn" class="secondary-button" type="button">登録する</button>
               <span id="registerStatus" class="small-status">未登録</span>
             </div>
@@ -220,6 +222,6 @@
       </section>
     </main>
 
-    <script src="./app.js?v=neo-20260726-6"></script>
+    <script src="./app.js?v=neo-20260726-7"></script>
   </body>
 </html>

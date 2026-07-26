@@ -456,6 +456,16 @@ textarea,
   margin-left: 4px;
 }
 
+.register-limit-note {
+  border-radius: 6px;
+  background: var(--yellow);
+  padding: 8px 10px;
+  color: #6f5814;
+  font-size: 0.82rem;
+  font-weight: 800;
+  line-height: 1.5;
+}
+
 code {
   border-radius: 4px;
   background: #eef3f1;

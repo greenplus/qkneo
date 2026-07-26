@@ -40,6 +40,7 @@ const state = {
   roomRules: {},
   roomCpuProfiles: {},
   roomHnpChallengeEnabled: {},
+  roomRegisteredNumberLimits: {},
   players: [],
   currentRoomHasCpu: false,
   hnpChallengeEnabled: false,
@@ -113,6 +114,7 @@ function bindElements() {
     "compositeText",
     "saveRegisterBtn",
     "registerStatus",
+    "registerLimitNote",
     "fieldCards",
     "deckCount",
     "myHandCount",
@@ -195,6 +197,7 @@ function selectRoom(roomKey) {
   state.selectedRoomKey = roomKey;
   state.hnpChallengeEnabled = !!state.roomHnpChallengeEnabled[currentRoomId()];
   state.currentRoomHasCpu = false;
+  renderSampleOptions();
   setSampleSelectToRoomDefault();
   renderRoomChoice();
   renderAll();
@@ -250,6 +253,7 @@ function handleMessage(msg) {
       state.roomRules = msg.rules || {};
       state.roomCpuProfiles = msg.cpu_profiles || {};
       state.roomHnpChallengeEnabled = msg.hnp_challenge_enabled || {};
+      state.roomRegisteredNumberLimits = msg.registered_number_limits || {};
       if (!isRoomAvailable(state.selectedRoomKey) && isRoomAvailable("advanced")) {
         state.selectedRoomKey = "advanced";
       }
@@ -523,14 +527,19 @@ function renderRegisteredStatus(msg) {
   el.registerStatus.textContent = errorCount
     ? `素数 ${primeCount} / 合成数 ${compositeCount} / エラー ${errorCount}`
     : `素数 ${primeCount} / 合成数 ${compositeCount}`;
-  if (!errorCount && el.registerPanel) el.registerPanel.open = false;
   scheduleAssist();
 }
 
 function renderSampleOptions() {
   const current = el.sampleSelect.value || currentRoomOption().defaultSampleKey || CONFIG.defaultSampleKey;
+  const limit = state.roomRegisteredNumberLimits[currentRoomId()];
+  const availableOptions = state.sampleOptions.filter((option) => (
+    !Number.isFinite(limit)
+    || !Number.isFinite(option.total_count)
+    || option.total_count <= limit
+  ));
   el.sampleSelect.innerHTML = "";
-  state.sampleOptions.forEach((option) => {
+  availableOptions.forEach((option) => {
     const opt = document.createElement("option");
     opt.value = option.key;
     opt.textContent = readableSampleLabel(option);
@@ -548,7 +557,10 @@ function readableSampleLabel(option) {
     gold_prime_table: "ゴールド素数表",
     silver_prime_table: "シルバー素数表",
   };
-  return labels[option.key] || option.label || option.key;
+  const label = labels[option.key] || option.label || option.key;
+  return Number.isFinite(option.total_count)
+    ? `${label}（${option.total_count}件）`
+    : label;
 }
 
 function renderPlayers(players, waitingCount) {
@@ -686,6 +698,11 @@ function renderRoomChoice() {
   el.practiceBtn.textContent = `${room.label}に入室する`;
   el.roomBadge.textContent = room.badge;
   el.roomHeading.textContent = room.roomHeading;
+  const registeredNumberLimit = state.roomRegisteredNumberLimits[roomId];
+  el.registerLimitNote.classList.toggle("hidden", !Number.isFinite(registeredNumberLimit));
+  if (Number.isFinite(registeredNumberLimit)) {
+    el.registerLimitNote.textContent = `${room.label}は素数・合成数あわせて${registeredNumberLimit}件まで登録できます。`;
+  }
   if (state.connected && state.appMode === "setup") {
     renderServerRoomStatus(roomId, count);
   }
@@ -711,7 +728,7 @@ function renderNextHint() {
     if (!state.isWaiting) {
       el.nextHint.textContent = "観戦中です。遊ぶ場合は「対戦に参加」を押してください。";
     } else if (!state.currentRoomHasCpu) {
-      el.nextHint.textContent = "一人で試すならCPUを追加できます。友だちを待つ場合はこのままでOKです。";
+      el.nextHint.textContent = "「開始」で一人プレイ、CPUを追加して「開始」でCPU対戦ができます。友だちを待つ場合はこのまま待てます。";
     } else {
       el.nextHint.textContent = "準備OKです。「開始」を押すと練習対戦が始まります。";
     }

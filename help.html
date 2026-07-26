@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>遊び方・ヘルプ | 素数大富豪NEO</title>
-    <link rel="stylesheet" href="./styles.css?v=neo-help-20260726-1" />
+    <link rel="stylesheet" href="./styles.css?v=neo-help-20260726-2" />
   </head>
   <body>
     <main class="help-shell">
@@ -210,7 +210,9 @@ KQ=2^5*41</pre>
             <ul>
               <li>登録内容は現在の接続中だけ保持され、ページの再読み込みや再接続後には残りません。</li>
               <li>ゲーム開始には、素数または合成数を1件以上登録する必要があります。</li>
-              <li>素数・合成数は、それぞれ最大20,000種類です。</li>
+              <li><strong>初級では、素数・合成数をあわせて500件まで登録できます。</strong></li>
+              <li>500件を超えるサンプル素数表は、初級の選択肢には表示されません。</li>
+              <li>初級以外のシステム上限は、素数・合成数それぞれ最大20,000種類です。</li>
               <li>1つの表記は最大72文字、各入力欄の全体は約200,000文字までです。</li>
               <li>無効な項目が混ざっていても、正常に読み取れた項目は登録されます。</li>
               <li>ファイルアップロードはありません。素数欄には <code>prime_value</code> 列を持つCSV本文を貼り付けられます。</li>
@@ -279,6 +281,7 @@ KQ=2^5*41</pre>
                   <tr>
                     <th scope="col">部屋</th>
                     <th scope="col">手札・デッキ</th>
+                    <th scope="col">登録上限</th>
                     <th scope="col">失敗時</th>
                   </tr>
                 </thead>
@@ -286,11 +289,13 @@ KQ=2^5*41</pre>
                   <tr>
                     <th scope="row">初級</th>
                     <td>7枚。偶数札を減らしたデッキ。</td>
+                    <td>素数・合成数あわせて500件。</td>
                     <td>ペナルティは常に1枚。</td>
                   </tr>
                   <tr>
                     <th scope="row">上級</th>
                     <td>11枚。通常の54枚デッキ。</td>
+                    <td>初級の500件制限なし。</td>
                     <td>使用した札の枚数が基準。合成数は材料札も含みます。</td>
                   </tr>
                 </tbody>
