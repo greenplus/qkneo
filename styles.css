@@ -1047,6 +1047,101 @@ body[data-mode="playing"] .log-box {
   text-underline-offset: 3px;
 }
 
+.campaign-entry-link {
+  display: grid;
+  gap: 3px;
+  margin-top: 12px;
+  border: 1px solid #d4b348;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #fff9d9, #eefbf4);
+  padding: 13px 14px;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.campaign-entry-link span {
+  color: #8a6710;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.campaign-entry-link strong {
+  color: var(--green-dark);
+}
+
+.campaign-entry-link small {
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.campaign-result-dialog {
+  width: min(92vw, 480px);
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  padding: 0;
+}
+
+.campaign-result-dialog::backdrop {
+  background: rgba(10, 26, 19, 0.58);
+  backdrop-filter: blur(2px);
+}
+
+.campaign-result-card {
+  position: relative;
+  border: 1px solid var(--line);
+  border-top: 5px solid #d4b348;
+  border-radius: 12px;
+  background: var(--panel);
+  padding: 24px;
+  box-shadow: 0 20px 70px rgba(10, 26, 19, 0.24);
+}
+
+.campaign-result-card h2 {
+  padding-right: 28px;
+  color: var(--green-dark);
+  font-size: 1.3rem;
+}
+
+.campaign-result-message {
+  margin-top: 12px;
+  color: var(--ink);
+  line-height: 1.7;
+}
+
+.campaign-result-actions {
+  display: grid;
+  gap: 9px;
+  margin-top: 20px;
+}
+
+.link-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  border: 1px solid var(--green);
+  border-radius: 8px;
+  padding: 0 14px;
+  font-weight: 850;
+  text-decoration: none;
+}
+
+.dialog-close-button {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
 body[data-mode="room"] .site-footer,
 body[data-mode="playing"] .site-footer {
   display: none;

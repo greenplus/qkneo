@@ -1,0 +1,248 @@
+.campaign-shell {
+  width: min(100%, 880px);
+  margin: 0 auto;
+  padding: 18px 12px 42px;
+}
+
+.campaign-hero {
+  display: grid;
+  gap: 20px;
+  align-items: end;
+  padding: 34px 4px 28px;
+}
+
+.campaign-hero h1 {
+  color: var(--green-dark);
+  font-size: clamp(2.6rem, 10vw, 5.6rem);
+  line-height: 0.92;
+}
+
+.campaign-kicker {
+  margin-bottom: 8px;
+  color: #9a7415;
+  font-size: 0.75rem;
+  font-weight: 950;
+  letter-spacing: 0.11em;
+}
+
+.campaign-lead {
+  max-width: 620px;
+  margin-top: 18px;
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1.8;
+}
+
+.campaign-play-link {
+  min-width: 180px;
+}
+
+.campaign-state-panel {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  padding: 34px 22px;
+  text-align: center;
+}
+
+.campaign-state-panel h2 {
+  font-size: 1.35rem;
+}
+
+.campaign-countdown {
+  color: var(--green-dark);
+  font-size: clamp(2rem, 8vw, 4.2rem);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.campaign-date,
+.campaign-subcopy {
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.campaign-error {
+  border-color: #e5bcbc;
+  background: #fffafa;
+}
+
+.campaign-active {
+  display: grid;
+  gap: 16px;
+}
+
+.campaign-progress-panel,
+.campaign-ranking-panel,
+.campaign-rules-panel {
+  padding: 22px;
+}
+
+.campaign-progress-heading,
+.campaign-ranking-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.campaign-progress-heading h2,
+.campaign-ranking-heading h2,
+.campaign-rules-panel h2 {
+  font-size: 1.18rem;
+}
+
+.campaign-total-label {
+  color: var(--green-dark);
+  font-size: clamp(1.4rem, 5vw, 2.3rem);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.campaign-progress-track {
+  height: 30px;
+  margin-top: 20px;
+  overflow: hidden;
+  border: 1px solid #b8d9c8;
+  border-radius: 999px;
+  background:
+    repeating-linear-gradient(
+      135deg,
+      #edf6f1,
+      #edf6f1 10px,
+      #e2efe8 10px,
+      #e2efe8 20px
+    );
+}
+
+.campaign-progress-bar {
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #128455, #43b276, #d4b348);
+  transition: width 500ms ease;
+}
+
+.campaign-progress-copy {
+  margin-top: 9px;
+  color: var(--muted);
+  font-size: 0.88rem;
+  text-align: right;
+}
+
+.campaign-updated-at {
+  color: var(--muted);
+  font-size: 0.75rem;
+  text-align: right;
+}
+
+.campaign-ranking-list {
+  display: grid;
+  gap: 7px;
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.campaign-ranking-row {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-height: 48px;
+  border-bottom: 1px solid var(--line);
+  padding: 6px 4px;
+}
+
+.campaign-ranking-row:first-child {
+  border: 1px solid #dfca79;
+  border-radius: 8px;
+  background: #fffbed;
+  padding: 9px 10px;
+}
+
+.campaign-rank {
+  color: #8a6710;
+  font-size: 0.86rem;
+  font-weight: 950;
+  font-variant-numeric: tabular-nums;
+}
+
+.campaign-player-name {
+  overflow: hidden;
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.campaign-player-wins {
+  color: var(--green-dark);
+  font-size: 1.02rem;
+  font-weight: 950;
+  font-variant-numeric: tabular-nums;
+}
+
+.campaign-empty-ranking {
+  margin-top: 18px;
+  border-radius: 8px;
+  background: var(--mint);
+  padding: 18px;
+  color: var(--green-dark);
+  text-align: center;
+}
+
+.campaign-rules-panel {
+  margin-top: 16px;
+}
+
+.campaign-rules-panel ol {
+  margin: 14px 0 0;
+  padding-left: 1.4em;
+}
+
+.campaign-rules-panel li,
+.campaign-rules-panel p {
+  line-height: 1.8;
+}
+
+.campaign-rules-panel p {
+  margin-top: 12px;
+  color: var(--muted);
+}
+
+.campaign-footer {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+  padding: 24px 4px 0;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+@media (min-width: 720px) {
+  .campaign-hero {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .campaign-progress-panel,
+  .campaign-ranking-panel,
+  .campaign-rules-panel {
+    padding: 28px;
+  }
+}
+
+@media (max-width: 520px) {
+  .campaign-progress-heading,
+  .campaign-ranking-heading {
+    align-items: start;
+    flex-direction: column;
+  }
+
+  .campaign-updated-at {
+    text-align: left;
+  }
+
+  .campaign-total-label {
+    align-self: end;
+  }
+}

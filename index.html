@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>素数大富豪NEO β版</title>
-    <link rel="stylesheet" href="./styles.css?v=neo-20260727-10" />
+    <link rel="stylesheet" href="./styles.css?v=neo-20260727-11" />
   </head>
   <body>
     <main class="app-shell">
@@ -29,7 +29,7 @@
           <h2>はじめる</h2>
           <label class="field-label" for="nameInput">表示名</label>
           <div class="name-row">
-            <input id="nameInput" autocomplete="nickname" placeholder="例: マグロ" />
+            <input id="nameInput" maxlength="24" autocomplete="nickname" placeholder="例: マグロ" />
             <button id="randomNameBtn" class="ghost-button" type="button">おまかせ</button>
           </div>
           <div class="room-choice" role="group" aria-label="部屋選択">
@@ -69,6 +69,11 @@
           </div>
           <a class="secondary-button help-button" href="./help.html" target="_blank" rel="noopener">
             ルール・アシスト・HNPを詳しく見る
+          </a>
+          <a class="campaign-entry-link" href="./campaign.html">
+            <span>開催企画</span>
+            <strong>CPU勝利数キャンペーン</strong>
+            <small>ゴールドCPUに挑戦して、みんなで100勝を目指そう</small>
           </a>
         </div>
       </section>
@@ -227,6 +232,23 @@
       </footer>
     </main>
 
-    <script src="./app.js?v=neo-20260727-10"></script>
+    <dialog id="campaignResultDialog" class="campaign-result-dialog">
+      <div class="campaign-result-card">
+        <button id="campaignDialogCloseBtn" class="dialog-close-button" type="button" aria-label="閉じる">×</button>
+        <p class="eyebrow">CPU勝利数キャンペーン</p>
+        <h2 id="campaignResultTitle">勝利を記録しました</h2>
+        <p id="campaignResultMessage" class="campaign-result-message"></p>
+        <div class="campaign-result-actions">
+          <a id="campaignShareBtn" class="primary-button link-button" href="#" target="_blank" rel="noopener">
+            Xでシェア
+          </a>
+          <a id="campaignResultPageLink" class="secondary-button link-button" href="./campaign.html">
+            ゲージとランキングを見る
+          </a>
+        </div>
+      </div>
+    </dialog>
+
+    <script src="./app.js?v=neo-20260727-12"></script>
   </body>
 </html>

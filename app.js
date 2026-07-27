@@ -163,6 +163,12 @@ function bindElements() {
     "logBox",
     "chatInput",
     "chatBtn",
+    "campaignResultDialog",
+    "campaignDialogCloseBtn",
+    "campaignResultTitle",
+    "campaignResultMessage",
+    "campaignShareBtn",
+    "campaignResultPageLink",
   ].forEach((id) => {
     el[id] = document.getElementById(id);
   });
@@ -202,6 +208,7 @@ function bindEvents() {
   el.assistEasyBtn.addEventListener("click", () => setAssistOrder("weak"));
   el.assistRestBtn.addEventListener("click", toggleAssistRest);
   el.assistManyBtn.addEventListener("click", toggleAssistLimit);
+  el.campaignDialogCloseBtn.addEventListener("click", closeCampaignResult);
 }
 
 function currentRoomOption() {
@@ -376,6 +383,9 @@ function handleMessage(msg) {
       clearFlowPreview(false);
       clearSelection();
       break;
+    case "campaign_result":
+      showCampaignResult(msg);
+      break;
     case "score_record":
       logScoreRecord(msg.lines || []);
       break;
@@ -452,9 +462,48 @@ function continuePendingFlowAfterCpuStatus() {
 }
 
 function ensureName() {
-  const typed = el.nameInput.value.trim();
+  const typed = el.nameInput.value.trim().slice(0, 24);
   state.playerName = typed || randomName();
   el.nameInput.value = state.playerName;
+}
+
+function showCampaignResult(msg) {
+  const recorded = msg.status === "recorded";
+  el.campaignResultTitle.textContent = recorded
+    ? "ゴールドCPUへの勝利を記録しました！"
+    : "勝利記録を保存できませんでした";
+  el.campaignResultMessage.textContent = recorded
+    ? `「${msg.player_name}」で個人通算${msg.player_wins}勝、みんなで${msg.total_wins}/${msg.goal}勝です。`
+    : msg.message || "時間をおいて、キャンペーンページをご確認ください。";
+
+  const campaignUrl = msg.campaign_url || "./campaign.html";
+  el.campaignResultPageLink.href = campaignUrl;
+  el.campaignShareBtn.classList.toggle("hidden", !recorded);
+
+  if (recorded) {
+    const shareText = `「${msg.player_name}」でゴールドCPUに勝利！ 個人通算${msg.player_wins}勝、みんなで${msg.total_wins}/${msg.goal}勝。 #素数大富豪NEO #CPU勝利数キャンペーン`;
+    const params = new URLSearchParams({
+      text: shareText,
+      url: campaignUrl,
+    });
+    el.campaignShareBtn.href = `https://twitter.com/intent/tweet?${params.toString()}`;
+  } else {
+    el.campaignShareBtn.removeAttribute("href");
+  }
+
+  if (typeof el.campaignResultDialog.showModal === "function") {
+    if (!el.campaignResultDialog.open) el.campaignResultDialog.showModal();
+  } else {
+    el.campaignResultDialog.setAttribute("open", "");
+  }
+}
+
+function closeCampaignResult() {
+  if (typeof el.campaignResultDialog.close === "function") {
+    el.campaignResultDialog.close();
+  } else {
+    el.campaignResultDialog.removeAttribute("open");
+  }
 }
 
 function setRandomNameIfEmpty() {

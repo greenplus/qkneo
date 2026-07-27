@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="素数大富豪NEO・CPU勝利数キャンペーンの進捗とランキング" />
+    <title>CPU勝利数キャンペーン | 素数大富豪NEO</title>
+    <link rel="stylesheet" href="./styles.css?v=neo-20260727-11" />
+    <link rel="stylesheet" href="./campaign.css?v=campaign-20260727-1" />
+  </head>
+  <body>
+    <main class="campaign-shell">
+      <header class="campaign-hero">
+        <div>
+          <p class="campaign-kicker">素数大富豪NEO・初級</p>
+          <h1>CPU勝利数<br />キャンペーン</h1>
+          <p class="campaign-lead">
+            ゴールドCPUに挑戦して、みんなで100勝を目指そう。
+            勝利数は対戦サーバーから自動で集計されます。
+          </p>
+        </div>
+        <a class="secondary-button link-button campaign-play-link" href="./index.html">NEOで挑戦する</a>
+      </header>
+
+      <section id="campaignLoading" class="panel campaign-state-panel" aria-live="polite">
+        <p>集計情報を読み込んでいます...</p>
+      </section>
+
+      <section id="campaignScheduled" class="panel campaign-state-panel hidden" aria-live="polite">
+        <p class="campaign-kicker">STARTS IN</p>
+        <h2>キャンペーン開始まで</h2>
+        <strong id="campaignCountdown" class="campaign-countdown">--日 --:--:--</strong>
+        <p id="campaignStartAt" class="campaign-date"></p>
+        <p id="campaignScheduledMessage" class="campaign-subcopy"></p>
+      </section>
+
+      <section id="campaignUnavailable" class="panel campaign-state-panel campaign-error hidden" aria-live="polite">
+        <p class="campaign-kicker">TEMPORARILY UNAVAILABLE</p>
+        <h2>集計情報を取得できません</h2>
+        <p id="campaignErrorMessage" class="campaign-subcopy">
+          時間をおいて、もう一度お試しください。
+        </p>
+        <button id="campaignRetryBtn" class="secondary-button" type="button">再読み込み</button>
+      </section>
+
+      <div id="campaignActive" class="campaign-active hidden">
+        <section class="panel campaign-progress-panel">
+          <div class="campaign-progress-heading">
+            <div>
+              <p class="campaign-kicker">COMMUNITY GOAL</p>
+              <h2>みんなの通算勝利数</h2>
+            </div>
+            <strong id="campaignTotalLabel" class="campaign-total-label">0 / 100勝</strong>
+          </div>
+          <div
+            id="campaignProgressTrack"
+            class="campaign-progress-track"
+            role="progressbar"
+            aria-label="100勝までの進捗"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow="0"
+          >
+            <div id="campaignProgressBar" class="campaign-progress-bar"></div>
+          </div>
+          <p id="campaignProgressCopy" class="campaign-progress-copy">100勝まであと100勝</p>
+        </section>
+
+        <section class="panel campaign-ranking-panel">
+          <div class="campaign-ranking-heading">
+            <div>
+              <p class="campaign-kicker">TOP 20</p>
+              <h2>勝利数ランキング</h2>
+            </div>
+            <p id="campaignUpdatedAt" class="campaign-updated-at"></p>
+          </div>
+          <ol id="campaignRanking" class="campaign-ranking-list"></ol>
+          <p id="campaignEmptyRanking" class="campaign-empty-ranking hidden">
+            まだ記録はありません。最初の1勝を目指そう！
+          </p>
+        </section>
+      </div>
+
+      <section class="panel campaign-rules-panel">
+        <h2>参加方法</h2>
+        <ol>
+          <li>素数大富豪NEOで「初級」に入室</li>
+          <li>「ゴールドCPU」を追加して2人対戦を開始</li>
+          <li>ゴールドCPUに勝つと、登録名で1勝が自動記録されます</li>
+        </ol>
+        <p>同じ登録名の勝利は合算されます。Xへの共有は任意です。</p>
+      </section>
+
+      <footer class="campaign-footer">
+        <a href="./index.html">素数大富豪NEOへ戻る</a>
+        <a href="https://greenplus.github.io/">green+の無人島</a>
+      </footer>
+    </main>
+
+    <script src="./campaign.js?v=campaign-20260727-1"></script>
+  </body>
+</html>
