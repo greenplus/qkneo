@@ -1,5 +1,6 @@
 const CONFIG = {
   wsUrl: new URLSearchParams(location.search).get("ws") || "wss://web-production-c8e68.up.railway.app/ws",
+  shareUrl: "https://greenplus.github.io/qkneo/",
   defaultRoomKey: "beginner",
   rooms: {
     beginner: {
@@ -481,10 +482,10 @@ function showCampaignResult(msg) {
   el.campaignShareBtn.classList.toggle("hidden", !recorded);
 
   if (recorded) {
-    const shareText = `「${msg.player_name}」でゴールドCPUに勝利！ 個人通算${msg.player_wins}勝、みんなで${msg.total_wins}/${msg.goal}勝。 #素数大富豪NEO #CPU勝利数キャンペーン`;
+    const shareText = `「${msg.player_name}」でゴールドCPUに勝利！ 個人通算${msg.player_wins}勝、みんなで${msg.total_wins}/${msg.goal}勝。 #素数大富豪NEO`;
     const params = new URLSearchParams({
       text: shareText,
-      url: campaignUrl,
+      url: CONFIG.shareUrl,
     });
     el.campaignShareBtn.href = `https://twitter.com/intent/tweet?${params.toString()}`;
   } else {
