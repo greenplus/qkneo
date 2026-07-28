@@ -25,6 +25,11 @@ const CONFIG = {
   defaultSampleKey: "sashimi2024",
 };
 
+const SOUND_SETTING_KEY = "prime-daifugo-sound-enabled";
+const PLAYER_JOINED_SOUND_URL = "./assets/sounds/player-joined.mp3";
+let playerJoinedAudio = null;
+let soundUnlockPromise = null;
+
 const state = {
   ws: null,
   connected: false,
@@ -37,6 +42,8 @@ const state = {
   isWaiting: false,
   currentTurn: "",
   firstPlayerId: null,
+  soundEnabled: readSoundPreference(),
+  roomRosterInitialized: false,
   roomCounts: {},
   roomCountsLoaded: false,
   roomRules: {},
@@ -105,6 +112,7 @@ function bindElements() {
     "roomBeginnerBtn",
     "roomAdvancedBtn",
     "practiceBtn",
+    "soundToggleBtn",
     "leaveBtn",
     "roomBadge",
     "roomHeading",
@@ -180,6 +188,7 @@ function bindEvents() {
   el.roomBeginnerBtn.addEventListener("click", () => selectRoom("beginner"));
   el.roomAdvancedBtn.addEventListener("click", () => selectRoom("advanced"));
   el.practiceBtn.addEventListener("click", () => startFlow("enter"));
+  el.soundToggleBtn.addEventListener("click", toggleSound);
   el.leaveBtn.addEventListener("click", leaveRoom);
   el.readyBtn.addEventListener("click", toggleReady);
   el.addCpuBtn.addEventListener("click", toggleCpu);
@@ -210,6 +219,9 @@ function bindEvents() {
   el.assistRestBtn.addEventListener("click", toggleAssistRest);
   el.assistManyBtn.addEventListener("click", toggleAssistLimit);
   el.campaignDialogCloseBtn.addEventListener("click", closeCampaignResult);
+  document.addEventListener("click", () => {
+    if (state.soundEnabled) unlockSoundPlayback();
+  }, { capture: true, once: true });
 }
 
 function currentRoomOption() {
@@ -306,12 +318,14 @@ function handleMessage(msg) {
       break;
     case "update_room_status":
       if (msg.room_id === currentRoomId()) {
+        const nextPlayers = msg.player_list || [];
         state.roomCounts[currentRoomId()] = msg.count;
-        state.currentRoomHasCpu = (msg.player_list || []).some((player) => player.is_cpu);
+        state.currentRoomHasCpu = nextPlayers.some((player) => player.is_cpu);
         if (state.currentRoomHasCpu) state.cpuChooserOpen = false;
         state.roomCpuProfiles[currentRoomId()] = msg.cpu_profiles || state.roomCpuProfiles[currentRoomId()] || [];
         if (typeof msg.hnp_challenge_enabled === "boolean") state.hnpChallengeEnabled = msg.hnp_challenge_enabled;
-        renderPlayers(msg.player_list || [], msg.waiting_count || 0);
+        detectPlayerJoined(nextPlayers);
+        renderPlayers(nextPlayers, msg.waiting_count || 0);
         continuePendingFlowAfterCpuStatus();
       }
       break;
@@ -419,6 +433,8 @@ function startFlow(flow) {
   state.sampleLoadedForFlow = false;
   state.cpuRequestedForFlow = false;
   state.startRequestedForFlow = false;
+  state.players = [];
+  state.roomRosterInitialized = false;
   state.appMode = "room";
   send({ type: "set_name", name: state.playerName });
   send({ type: "join_room", room_id: currentRoomId() });
@@ -545,6 +561,8 @@ function leaveRoom() {
   state.pendingFlow = null;
   state.cpuChooserOpen = false;
   state.selectedCpuKey = "";
+  state.players = [];
+  state.roomRosterInitialized = false;
   state.hand = [];
   state.currentTurn = "";
   state.fieldCards = [];
@@ -693,6 +711,21 @@ function renderPlayers(players, waitingCount) {
   }
 }
 
+function detectPlayerJoined(nextPlayers) {
+  const previousIds = new Set(state.players.map((player) => player.id));
+  const otherHumanJoined = state.roomJoined
+    && state.roomRosterInitialized
+    && nextPlayers.some((player) => (
+      player.id
+      && player.id !== state.playerId
+      && !player.is_cpu
+      && !previousIds.has(player.id)
+    ));
+
+  state.roomRosterInitialized = true;
+  if (otherHumanJoined) playPlayerJoinedSound();
+}
+
 function playerLabel(player) {
   const name = player.name || (player.is_cpu ? "CPU" : "プレイヤー");
   if (player.id === state.playerId) return `${name}（自分）`;
@@ -815,6 +848,7 @@ function renderAll() {
   document.body.dataset.mode = state.appMode;
   el.setupPanel.classList.toggle("hidden", state.appMode !== "setup");
   el.roomPanel.classList.toggle("hidden", state.appMode === "setup");
+  renderSoundToggle();
   renderRoomChoice();
   el.playStatus.textContent = state.isWaiting
     ? state.roomState === "playing"
@@ -857,6 +891,77 @@ function renderAll() {
   renderSelection();
   renderCompositeZone();
   renderAssist();
+}
+
+function readSoundPreference() {
+  try {
+    return localStorage.getItem(SOUND_SETTING_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
+function saveSoundPreference() {
+  try {
+    localStorage.setItem(SOUND_SETTING_KEY, String(state.soundEnabled));
+  } catch {
+    // 保存できない環境でも、このページを開いている間は切り替えを有効にする。
+  }
+}
+
+function getPlayerJoinedAudio() {
+  if (!playerJoinedAudio) {
+    playerJoinedAudio = new Audio(PLAYER_JOINED_SOUND_URL);
+    playerJoinedAudio.preload = "auto";
+  }
+  return playerJoinedAudio;
+}
+
+function toggleSound() {
+  state.soundEnabled = !state.soundEnabled;
+  saveSoundPreference();
+  renderSoundToggle();
+  if (state.soundEnabled) unlockSoundPlayback();
+}
+
+function renderSoundToggle() {
+  el.soundToggleBtn.classList.toggle("is-on", state.soundEnabled);
+  el.soundToggleBtn.setAttribute("aria-pressed", String(state.soundEnabled));
+  el.soundToggleBtn.setAttribute(
+    "aria-label",
+    state.soundEnabled ? "効果音をオフにする" : "効果音をオンにする",
+  );
+  el.soundToggleBtn.title = `効果音：${state.soundEnabled ? "オン" : "オフ"}`;
+}
+
+function unlockSoundPlayback() {
+  if (!state.soundEnabled || soundUnlockPromise) return soundUnlockPromise;
+  const audio = getPlayerJoinedAudio();
+  audio.muted = true;
+  soundUnlockPromise = audio.play()
+    .then(() => {
+      audio.pause();
+      audio.currentTime = 0;
+    })
+    .catch(() => {})
+    .finally(() => {
+      audio.muted = false;
+      soundUnlockPromise = null;
+    });
+  return soundUnlockPromise;
+}
+
+function playPlayerJoinedSound() {
+  if (!state.soundEnabled) return;
+  if (soundUnlockPromise) {
+    soundUnlockPromise.then(() => playPlayerJoinedSound());
+    return;
+  }
+  const audio = getPlayerJoinedAudio();
+  audio.pause();
+  audio.currentTime = 0;
+  audio.muted = false;
+  audio.play().catch(() => {});
 }
 
 function renderCpuChooser() {

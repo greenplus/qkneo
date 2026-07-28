@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>素数大富豪NEO β版</title>
-    <link rel="stylesheet" href="./styles.css?v=neo-20260727-11" />
+    <link rel="stylesheet" href="./styles.css?v=neo-20260728-2" />
   </head>
   <body>
     <main class="app-shell">
@@ -85,7 +85,24 @@
                 <p id="roomBadge" class="eyebrow">7枚・偶数半減・ペナルティ1枚</p>
                 <h2 id="roomHeading">初級ルーム</h2>
               </div>
-              <button id="leaveBtn" class="ghost-button compact" type="button">退室</button>
+              <div class="room-title-actions">
+                <button
+                  id="soundToggleBtn"
+                  class="ghost-button compact icon-button sound-toggle"
+                  type="button"
+                  aria-label="効果音をオンにする"
+                  aria-pressed="false"
+                  title="効果音：オフ"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4 9h4l5-4v14l-5-4H4z"></path>
+                    <path class="sound-wave" d="M16 9.5a4 4 0 0 1 0 5"></path>
+                    <path class="sound-wave" d="M18.5 7a7.5 7.5 0 0 1 0 10"></path>
+                    <path class="sound-slash" d="M3 3l18 18"></path>
+                  </svg>
+                </button>
+                <button id="leaveBtn" class="ghost-button compact" type="button">退室</button>
+              </div>
             </div>
             <div id="nextHint" class="next-hint">まずはサンプル登録を読み込みます。</div>
             <dl class="status-list">
@@ -153,7 +170,7 @@
             </div>
             <div id="fieldZone" class="field-zone">
               <h2 class="game-section-title">場：<span id="fieldNumber">なし</span></h2>
-              <div id="fieldCards" class="field-cards">まだ何も出ていません</div>
+              <div id="fieldCards" class="field-cards empty">まだ何も出ていません</div>
             </div>
           </div>
 
@@ -248,6 +265,6 @@
       </div>
     </dialog>
 
-    <script src="./app.js?v=neo-20260727-12"></script>
+    <script src="./app.js?v=neo-20260728-1"></script>
   </body>
 </html>
