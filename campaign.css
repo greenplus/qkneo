@@ -154,18 +154,43 @@
   padding: 6px 4px;
 }
 
-.campaign-ranking-row:first-child {
-  border: 1px solid #dfca79;
+.campaign-ranking-row:nth-child(-n + 3) {
   border-radius: 8px;
-  background: #fffbed;
   padding: 9px 10px;
 }
 
+.campaign-ranking-row:nth-child(1) {
+  border: 1px solid #dfca79;
+  background: #fffbed;
+}
+
+.campaign-ranking-row:nth-child(2) {
+  border: 1px solid #b7c1ca;
+  background: #f7f9fa;
+}
+
+.campaign-ranking-row:nth-child(3) {
+  border: 1px solid #c98f65;
+  background: #fff7f1;
+}
+
 .campaign-rank {
-  color: #8a6710;
+  color: var(--muted);
   font-size: 0.86rem;
   font-weight: 950;
   font-variant-numeric: tabular-nums;
+}
+
+.campaign-ranking-row:nth-child(1) .campaign-rank {
+  color: #8a6710;
+}
+
+.campaign-ranking-row:nth-child(2) .campaign-rank {
+  color: #64727d;
+}
+
+.campaign-ranking-row:nth-child(3) .campaign-rank {
+  color: #96562d;
 }
 
 .campaign-player-name {

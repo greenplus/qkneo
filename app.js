@@ -57,6 +57,7 @@ const state = {
   currentRoomHasCpu: false,
   hnpChallengeEnabled: false,
   registeredPrimeValues: new Set(),
+  registeredCompositeValues: new Set(),
   sampleOptions: [],
   deckCount: "-",
   fieldNumber: "",
@@ -220,9 +221,12 @@ function bindEvents() {
   el.assistRestBtn.addEventListener("click", toggleAssistRest);
   el.assistManyBtn.addEventListener("click", toggleAssistLimit);
   el.campaignDialogCloseBtn.addEventListener("click", closeCampaignResult);
-  document.addEventListener("click", () => {
+  const unlockSoundOnFirstRelevantClick = (event) => {
+    if (event.target.closest(".room-choice-card")) return;
+    document.removeEventListener("click", unlockSoundOnFirstRelevantClick, true);
     if (state.soundEnabled) unlockSoundPlayback();
-  }, { capture: true, once: true });
+  };
+  document.addEventListener("click", unlockSoundOnFirstRelevantClick, true);
 }
 
 function currentRoomOption() {
@@ -651,13 +655,19 @@ function renderRegisteredStatus(msg) {
   if (msg.sample_key) el.sampleSelect.value = msg.sample_key;
   if (msg.sample_prime_text) el.primeText.value = msg.sample_prime_text;
   if (msg.sample_composite_text) el.compositeText.value = msg.sample_composite_text;
-  rebuildRegisteredPrimeValues();
+  if (Array.isArray(msg.prime_values) || Array.isArray(msg.composite_values)) {
+    state.registeredPrimeValues = new Set((msg.prime_values || []).map((value) => String(value)));
+    state.registeredCompositeValues = new Set((msg.composite_values || []).map((value) => String(value)));
+  } else {
+    rebuildRegisteredValueSets();
+  }
   const primeCount = msg.prime_count ?? msg.count ?? 0;
   const compositeCount = msg.composite_count ?? 0;
   const errorCount = (msg.prime_errors || msg.errors || []).length + (msg.composite_errors || []).length;
   el.registerStatus.textContent = errorCount
     ? `素数 ${primeCount} / 合成数 ${compositeCount} / エラー ${errorCount}`
     : `素数 ${primeCount} / 合成数 ${compositeCount}`;
+  renderSelection();
   scheduleAssist();
 }
 
@@ -938,7 +948,9 @@ function renderSoundToggle() {
 function unlockSoundPlayback() {
   if (!state.soundEnabled || soundUnlockPromise) return soundUnlockPromise;
   const audio = getPlayerJoinedAudio();
+  const previousVolume = audio.volume;
   audio.muted = true;
+  audio.volume = 0;
   soundUnlockPromise = audio.play()
     .then(() => {
       audio.pause();
@@ -946,6 +958,9 @@ function unlockSoundPlayback() {
     })
     .catch(() => {})
     .finally(() => {
+      audio.pause();
+      audio.currentTime = 0;
+      audio.volume = previousVolume;
       audio.muted = false;
       soundUnlockPromise = null;
     });
@@ -1114,9 +1129,7 @@ function renderSelection() {
     });
     const number = selectedNumberText();
     el.selectedTitle.textContent = number
-      ? isHnpChallengeSelection()
-        ? `選択中: ${number} (HNP)`
-        : `選択中: ${number}`
+      ? `選択中: ${number}${selectedNumberRegistrationLabel()}${isHnpChallengeSelection() ? " (HNP)" : ""}`
       : "選択中: X=?";
   }
   renderJokerControls();
@@ -1453,12 +1466,28 @@ function registeredPatternToValue(pattern) {
   return !value || value.startsWith("0") ? null : value;
 }
 
-function rebuildRegisteredPrimeValues() {
+function rebuildRegisteredValueSets() {
   state.registeredPrimeValues = new Set();
+  state.registeredCompositeValues = new Set();
   String(el.primeText.value || "").split(/[\s,、，]+/).forEach((token) => {
     const value = registeredPatternToValue(token);
     if (value !== null) state.registeredPrimeValues.add(value);
   });
+  String(el.compositeText.value || "").split(/\r?\n/).forEach((line) => {
+    const left = line.split("=")[0].split("|")[0].trim();
+    const token = left.split(/\s+/)[0];
+    const value = registeredPatternToValue(token);
+    if (value !== null) state.registeredCompositeValues.add(value);
+  });
+}
+
+function selectedNumberRegistrationLabel() {
+  const number = selectedNumberText();
+  if (!number) return "";
+  const registeredValues = state.compositeMode
+    ? state.registeredCompositeValues
+    : state.registeredPrimeValues;
+  return registeredValues.has(number) ? "（登録済み）" : "";
 }
 
 function isHnpChallengeSelection() {

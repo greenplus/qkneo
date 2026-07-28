@@ -958,6 +958,14 @@ textarea {
   gap: 10px;
 }
 
+body[data-mode="playing"] .log-panel {
+  padding: 18px;
+}
+
+body[data-mode="playing"] .log-panel .game-section-title {
+  font-size: 1.05rem;
+}
+
 body[data-mode="playing"] .room-layout {
   grid-template-columns: minmax(0, 1fr);
   gap: 8px;
@@ -1045,15 +1053,6 @@ body[data-mode="playing"] .play-area {
 
 body[data-mode="playing"] .side-column {
   gap: 0;
-}
-
-body[data-mode="playing"] .log-panel {
-  min-height: 0;
-}
-
-body[data-mode="playing"] .log-box {
-  min-height: 120px;
-  max-height: 180px;
 }
 
 .log-box {
@@ -1392,6 +1391,10 @@ body[data-mode="playing"] .site-footer {
   body[data-mode="playing"] .composite-panel,
   body[data-mode="playing"] .panel {
     padding: 8px;
+  }
+
+  body[data-mode="playing"] .log-panel {
+    padding: 12px;
   }
 
 }
