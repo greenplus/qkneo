@@ -11,6 +11,7 @@ const CONFIG = {
       roomHeading: "初級ルーム",
       badge: "7枚 / 偶数半減 / ペナルティ1枚",
       defaultSampleKey: "gold_prime_table",
+      defaultCpuKey: "gold_planner",
     },
     advanced: {
       roomId: "room_14",
@@ -975,7 +976,12 @@ function renderCpuChooser() {
   if (!shouldShow) return;
 
   const selectedExists = profiles.some((profile) => profile.key === state.selectedCpuKey);
-  if (!selectedExists) state.selectedCpuKey = profiles[0].key;
+  if (!selectedExists) {
+    const defaultCpuKey = currentRoomOption().defaultCpuKey;
+    state.selectedCpuKey = profiles.some((profile) => profile.key === defaultCpuKey)
+      ? defaultCpuKey
+      : profiles[0].key;
+  }
 
   el.cpuProfileSelect.replaceChildren(...profiles.map((profile) => {
     const option = document.createElement("option");
@@ -986,7 +992,11 @@ function renderCpuChooser() {
   el.cpuProfileSelect.value = state.selectedCpuKey;
 
   const selected = profiles.find((profile) => profile.key === state.selectedCpuKey);
-  el.cpuProfileDescription.textContent = selected?.description || "このCPUの説明はありません。";
+  const description = selected?.description || "このCPUの説明はありません。";
+  const campaignPrefix = state.selectedRoomKey === "beginner" && selected?.key === "gold_planner"
+    ? "【イベント開催中】 "
+    : "";
+  el.cpuProfileDescription.textContent = `${campaignPrefix}${description}`;
   el.confirmCpuBtn.textContent = `${selected?.label || "CPU"}を追加`;
 }
 
