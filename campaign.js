@@ -3,11 +3,13 @@ const CAMPAIGN_CONFIG = {
     new URLSearchParams(location.search).get("api")
     || "https://web-production-c8e68.up.railway.app",
   refreshIntervalMs: 15000,
+  milestones: [100, 200],
 };
 
 const campaignState = {
   serverOffsetMs: 0,
   startsAtMs: null,
+  endsAtMs: null,
   refreshTimer: null,
   countdownTimer: null,
 };
@@ -37,8 +39,10 @@ function bindCampaignElements() {
     "campaignErrorMessage",
     "campaignRetryBtn",
     "campaignTotalLabel",
+    "campaignStatusNote",
     "campaignProgressTrack",
     "campaignProgressBar",
+    "campaignMilestones",
     "campaignProgressCopy",
     "campaignUpdatedAt",
     "campaignRanking",
@@ -69,6 +73,7 @@ function renderCampaign(payload) {
     campaignState.serverOffsetMs = serverNowMs - Date.now();
   }
   campaignState.startsAtMs = payload.starts_at ? Date.parse(payload.starts_at) : null;
+  campaignState.endsAtMs = payload.ends_at ? Date.parse(payload.ends_at) : null;
 
   hideAllCampaignStates();
   if (payload.status === "scheduled") {
@@ -81,27 +86,63 @@ function renderCampaign(payload) {
     return;
   }
 
-  if (payload.status !== "active") {
+  if (!["active", "finished"].includes(payload.status)) {
     renderUnavailable(payload.message || "集計情報を取得できません");
     return;
   }
 
+  const finished = payload.status === "finished";
   campaignElements.campaignActive.classList.remove("hidden");
-  const goal = positiveNumber(payload.goal, 100);
+  const goal = positiveNumber(payload.goal, 300);
   const totalWins = nonNegativeNumber(payload.total_wins, 0);
   const progress = Math.min(100, Math.max(0, Number(payload.progress_percent) || 0));
 
   campaignElements.campaignTotalLabel.textContent = `${totalWins} / ${goal}勝`;
+  campaignElements.campaignStatusNote.classList.toggle("finished", finished);
+  campaignElements.campaignStatusNote.textContent = finished
+    ? payload.message || "キャンペーンは終了しました。最終結果です。"
+    : campaignState.endsAtMs
+      ? `${formatDateTime(campaignState.endsAtMs)}まで`
+      : "";
   campaignElements.campaignProgressBar.style.width = `${progress}%`;
   campaignElements.campaignProgressTrack.setAttribute("aria-valuenow", String(Math.min(totalWins, goal)));
   campaignElements.campaignProgressTrack.setAttribute("aria-valuemax", String(goal));
-  campaignElements.campaignProgressCopy.textContent = totalWins >= goal
-    ? `目標達成！ 現在${totalWins}勝`
-    : `${goal}勝まであと${goal - totalWins}勝`;
+  campaignElements.campaignProgressTrack.setAttribute("aria-label", `${goal}勝までの進捗`);
+  renderMilestones(goal, totalWins);
+  campaignElements.campaignProgressCopy.textContent = finished
+    ? totalWins >= goal
+      ? `最終結果：目標達成（${totalWins}勝）`
+      : `最終結果：${totalWins}勝`
+    : totalWins >= goal
+      ? `目標達成！ 現在${totalWins}勝`
+      : `${goal}勝まであと${goal - totalWins}勝`;
   campaignElements.campaignUpdatedAt.textContent = payload.last_updated_at
-    ? `更新 ${formatDateTime(Date.parse(payload.last_updated_at))}`
+    ? `${finished ? "最終更新" : "更新"} ${formatDateTime(Date.parse(payload.last_updated_at))}`
     : "まだ勝利記録はありません";
   renderRanking(Array.isArray(payload.rankings) ? payload.rankings : []);
+
+  if (finished && campaignState.refreshTimer !== null) {
+    window.clearInterval(campaignState.refreshTimer);
+    campaignState.refreshTimer = null;
+  }
+}
+
+function renderMilestones(goal, totalWins) {
+  campaignElements.campaignMilestones.replaceChildren();
+  CAMPAIGN_CONFIG.milestones
+    .filter((milestone) => milestone > 0 && milestone < goal)
+    .forEach((milestone) => {
+      const marker = document.createElement("span");
+      marker.className = "campaign-progress-marker";
+      marker.style.left = `${milestone / goal * 100}%`;
+      const reached = totalWins >= milestone;
+      marker.classList.toggle("reached", reached);
+
+      const label = document.createElement("span");
+      label.textContent = reached ? `${milestone}✓` : String(milestone);
+      marker.appendChild(label);
+      campaignElements.campaignMilestones.appendChild(marker);
+    });
 }
 
 function renderRanking(rankings) {

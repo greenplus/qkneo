@@ -6,7 +6,7 @@
     <meta name="description" content="素数大富豪NEO・CPU勝利数キャンペーンの進捗とランキング" />
     <title>CPU勝利数キャンペーン | 素数大富豪NEO</title>
     <link rel="stylesheet" href="./styles.css?v=neo-20260728-3" />
-    <link rel="stylesheet" href="./campaign.css?v=campaign-20260728-2" />
+    <link rel="stylesheet" href="./campaign.css?v=campaign-20260729-1" />
   </head>
   <body>
     <main class="campaign-shell">
@@ -15,7 +15,7 @@
           <p class="campaign-kicker">素数大富豪NEO・初級</p>
           <h1>CPU勝利数<br />キャンペーン</h1>
           <p class="campaign-lead">
-            ゴールドCPUに挑戦して、みんなで100勝を目指そう。
+            ゴールドCPUに挑戦して、みんなで300勝を目指そう。
             勝利数は対戦サーバーから自動で集計されます。
           </p>
         </div>
@@ -50,20 +50,22 @@
               <p class="campaign-kicker">COMMUNITY GOAL</p>
               <h2>みんなの通算勝利数</h2>
             </div>
-            <strong id="campaignTotalLabel" class="campaign-total-label">0 / 100勝</strong>
+            <strong id="campaignTotalLabel" class="campaign-total-label">0 / 300勝</strong>
           </div>
+          <p id="campaignStatusNote" class="campaign-status-note"></p>
           <div
             id="campaignProgressTrack"
             class="campaign-progress-track"
             role="progressbar"
-            aria-label="100勝までの進捗"
+            aria-label="300勝までの進捗"
             aria-valuemin="0"
-            aria-valuemax="100"
+            aria-valuemax="300"
             aria-valuenow="0"
           >
             <div id="campaignProgressBar" class="campaign-progress-bar"></div>
+            <div id="campaignMilestones" class="campaign-milestones" aria-hidden="true"></div>
           </div>
-          <p id="campaignProgressCopy" class="campaign-progress-copy">100勝まであと100勝</p>
+          <p id="campaignProgressCopy" class="campaign-progress-copy">300勝まであと300勝</p>
         </section>
 
         <section class="panel campaign-ranking-panel">
@@ -97,6 +99,6 @@
       </footer>
     </main>
 
-    <script src="./campaign.js?v=campaign-20260728-2"></script>
+    <script src="./campaign.js?v=campaign-20260729-1"></script>
   </body>
 </html>

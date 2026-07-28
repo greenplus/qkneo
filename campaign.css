@@ -99,7 +99,23 @@
   white-space: nowrap;
 }
 
+.campaign-status-note {
+  min-height: 1.5em;
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.campaign-status-note.finished {
+  border-radius: 8px;
+  background: #fff6cf;
+  padding: 8px 10px;
+  color: #765a08;
+}
+
 .campaign-progress-track {
+  position: relative;
   height: 30px;
   margin-top: 20px;
   overflow: hidden;
@@ -116,11 +132,56 @@
 }
 
 .campaign-progress-bar {
+  position: relative;
+  z-index: 1;
   width: 0;
   height: 100%;
   border-radius: inherit;
   background: linear-gradient(90deg, #128455, #43b276, #d4b348);
   transition: width 500ms ease;
+}
+
+.campaign-milestones {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  pointer-events: none;
+}
+
+.campaign-progress-marker {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  border-left: 1px dashed #6f8f7f;
+  transform: translateX(-50%);
+}
+
+.campaign-progress-marker span {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  min-width: 30px;
+  border: 1px solid #b8d9c8;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  padding: 1px 4px;
+  color: #557064;
+  font-size: 0.64rem;
+  font-weight: 950;
+  line-height: 1.35;
+  text-align: center;
+  transform: translate(-50%, -50%);
+}
+
+.campaign-progress-marker.reached {
+  border-left-color: #7a5b00;
+  border-left-style: solid;
+}
+
+.campaign-progress-marker.reached span {
+  border-color: #d4b348;
+  background: #ffe789;
+  color: #604700;
 }
 
 .campaign-progress-copy {
