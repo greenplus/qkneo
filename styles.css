@@ -561,6 +561,17 @@ textarea,
   font-weight: 750;
 }
 
+.status-list .watcher-list {
+  max-height: 4.05em;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  text-overflow: clip;
+  white-space: normal;
+}
+
 .register-panel {
   display: grid;
   gap: 8px;
