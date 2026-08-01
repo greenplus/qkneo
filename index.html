@@ -32,8 +32,8 @@
             <input id="nameInput" maxlength="24" autocomplete="nickname" placeholder="例: マグロ" />
             <button id="randomNameBtn" class="ghost-button" type="button">おまかせ</button>
           </div>
-          <div class="room-choice" role="group" aria-label="部屋選択">
-            <button id="roomBeginnerBtn" class="room-choice-card active" type="button" aria-pressed="true">
+          <div class="difficulty-choice" role="group" aria-label="難易度選択">
+            <button id="difficultyBeginnerBtn" class="difficulty-choice-card active" type="button" aria-pressed="true">
               <span>初級 <b class="campaign-room-badge">イベント対象</b></span>
               <strong>7枚 / 偶数半減</strong>
               <small>ペナルティ1枚</small>
@@ -41,11 +41,18 @@
               <small class="campaign-room-period">7/28 20:00〜8/2 20:00</small>
               <small class="campaign-room-copy">ゴールドCPUに勝利して、みんなで300勝を目指そう</small>
             </button>
-            <button id="roomAdvancedBtn" class="room-choice-card" type="button" aria-pressed="false">
+            <button id="difficultyAdvancedBtn" class="difficulty-choice-card" type="button" aria-pressed="false">
               <span>上級</span>
               <strong>11枚 / 通常</strong>
               <small>ペナルティ通常</small>
             </button>
+          </div>
+          <div class="room-picker">
+            <div class="room-picker-heading">
+              <strong>部屋を選ぶ</strong>
+              <small id="roomPickerHint">初級の入室人数</small>
+            </div>
+            <div id="roomList" class="room-list" role="radiogroup" aria-label="初級の部屋選択"></div>
           </div>
           <a class="campaign-inline-link" href="./campaign.html">
             CPU勝利数キャンペーンの詳細・ランキングを見る →

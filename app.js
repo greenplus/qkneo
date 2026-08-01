@@ -1,24 +1,80 @@
 const CONFIG = {
   wsUrl: new URLSearchParams(location.search).get("ws") || "wss://web-production-c8e68.up.railway.app/ws",
   shareUrl: "https://greenplus.github.io/qkneo/",
-  defaultRoomKey: "beginner",
-  rooms: {
+  maxRoomPlayers: 10,
+  defaultDifficultyKey: "beginner",
+  defaultRoomKey: "beginner1",
+  difficulties: {
     beginner: {
+      label: "初級",
+      roomKeys: ["beginner1", "beginner2", "beginner3"],
+    },
+    advanced: {
+      label: "上級",
+      roomKeys: ["advanced1", "advanced2", "advanced3"],
+    },
+  },
+  rooms: {
+    beginner1: {
       roomId: "room_16",
+      difficultyKey: "beginner",
+      roomNumber: 1,
       label: "初級",
       title: "7枚 / 偶数半減",
       summary: "ペナルティ1枚",
-      roomHeading: "初級ルーム",
       badge: "7枚 / 偶数半減 / ペナルティ1枚",
       defaultSampleKey: "gold_prime_table",
       defaultCpuKey: "gold_planner",
     },
-    advanced: {
+    beginner2: {
+      roomId: "room_17",
+      difficultyKey: "beginner",
+      roomNumber: 2,
+      label: "初級",
+      title: "7枚 / 偶数半減",
+      summary: "ペナルティ1枚",
+      badge: "7枚 / 偶数半減 / ペナルティ1枚",
+      defaultSampleKey: "gold_prime_table",
+      defaultCpuKey: "gold_planner",
+    },
+    beginner3: {
+      roomId: "room_18",
+      difficultyKey: "beginner",
+      roomNumber: 3,
+      label: "初級",
+      title: "7枚 / 偶数半減",
+      summary: "ペナルティ1枚",
+      badge: "7枚 / 偶数半減 / ペナルティ1枚",
+      defaultSampleKey: "gold_prime_table",
+      defaultCpuKey: "gold_planner",
+    },
+    advanced1: {
       roomId: "room_14",
+      difficultyKey: "advanced",
+      roomNumber: 1,
       label: "上級",
       title: "11枚 / 通常",
       summary: "ペナルティ通常",
-      roomHeading: "上級ルーム",
+      badge: "11枚 / 通常",
+      defaultSampleKey: "sashimi2024",
+    },
+    advanced2: {
+      roomId: "room_19",
+      difficultyKey: "advanced",
+      roomNumber: 2,
+      label: "上級",
+      title: "11枚 / 通常",
+      summary: "ペナルティ通常",
+      badge: "11枚 / 通常",
+      defaultSampleKey: "sashimi2024",
+    },
+    advanced3: {
+      roomId: "room_20",
+      difficultyKey: "advanced",
+      roomNumber: 3,
+      label: "上級",
+      title: "11枚 / 通常",
+      summary: "ペナルティ通常",
       badge: "11枚 / 通常",
       defaultSampleKey: "sashimi2024",
     },
@@ -39,7 +95,12 @@ const state = {
   roomJoined: false,
   appMode: "setup",
   roomState: "waiting",
+  selectedDifficultyKey: CONFIG.defaultDifficultyKey,
   selectedRoomKey: CONFIG.defaultRoomKey,
+  selectedRoomsByDifficulty: {
+    beginner: "beginner1",
+    advanced: "advanced1",
+  },
   isWaiting: false,
   currentTurn: "",
   firstPlayerId: null,
@@ -47,6 +108,7 @@ const state = {
   roomRosterInitialized: false,
   roomCounts: {},
   roomCountsLoaded: false,
+  roomCountsTimer: null,
   roomRules: {},
   roomCpuProfiles: {},
   roomHnpChallengeEnabled: {},
@@ -111,8 +173,10 @@ function bindElements() {
     "registerPanel",
     "nameInput",
     "randomNameBtn",
-    "roomBeginnerBtn",
-    "roomAdvancedBtn",
+    "difficultyBeginnerBtn",
+    "difficultyAdvancedBtn",
+    "roomPickerHint",
+    "roomList",
     "practiceBtn",
     "soundToggleBtn",
     "leaveBtn",
@@ -187,8 +251,12 @@ function bindElements() {
 
 function bindEvents() {
   el.randomNameBtn.addEventListener("click", setRandomName);
-  el.roomBeginnerBtn.addEventListener("click", () => selectRoom("beginner"));
-  el.roomAdvancedBtn.addEventListener("click", () => selectRoom("advanced"));
+  el.difficultyBeginnerBtn.addEventListener("click", () => selectDifficulty("beginner"));
+  el.difficultyAdvancedBtn.addEventListener("click", () => selectDifficulty("advanced"));
+  el.roomList.addEventListener("click", (event) => {
+    const roomButton = event.target.closest("[data-room-key]");
+    if (roomButton) selectRoom(roomButton.dataset.roomKey);
+  });
   el.practiceBtn.addEventListener("click", () => startFlow("enter"));
   el.soundToggleBtn.addEventListener("click", toggleSound);
   el.leaveBtn.addEventListener("click", leaveRoom);
@@ -222,7 +290,7 @@ function bindEvents() {
   el.assistManyBtn.addEventListener("click", toggleAssistLimit);
   el.campaignDialogCloseBtn.addEventListener("click", closeCampaignResult);
   const unlockSoundOnFirstRelevantClick = (event) => {
-    if (event.target.closest(".room-choice-card")) return;
+    if (event.target.closest(".difficulty-choice-card, .room-slot-card")) return;
     document.removeEventListener("click", unlockSoundOnFirstRelevantClick, true);
     if (state.soundEnabled) unlockSoundPlayback();
   };
@@ -237,9 +305,26 @@ function currentRoomId() {
   return currentRoomOption().roomId;
 }
 
+function currentDifficultyOption() {
+  return CONFIG.difficulties[state.selectedDifficultyKey] || CONFIG.difficulties[CONFIG.defaultDifficultyKey];
+}
+
+function selectDifficulty(difficultyKey) {
+  if (state.roomJoined || !CONFIG.difficulties[difficultyKey]) return;
+  state.selectedDifficultyKey = difficultyKey;
+  const rememberedRoomKey = state.selectedRoomsByDifficulty[difficultyKey];
+  const firstAvailableRoomKey = CONFIG.difficulties[difficultyKey].roomKeys.find(isRoomSelectable);
+  const roomKey = isRoomSelectable(rememberedRoomKey)
+    ? rememberedRoomKey
+    : firstAvailableRoomKey || CONFIG.difficulties[difficultyKey].roomKeys[0];
+  selectRoom(roomKey);
+}
+
 function selectRoom(roomKey) {
-  if (state.roomJoined || !CONFIG.rooms[roomKey] || !isRoomAvailable(roomKey)) return;
+  if (state.roomJoined || !CONFIG.rooms[roomKey] || !isRoomSelectable(roomKey)) return;
   state.selectedRoomKey = roomKey;
+  state.selectedDifficultyKey = CONFIG.rooms[roomKey].difficultyKey;
+  state.selectedRoomsByDifficulty[state.selectedDifficultyKey] = roomKey;
   state.hnpChallengeEnabled = !!state.roomHnpChallengeEnabled[currentRoomId()];
   state.currentRoomHasCpu = false;
   state.cpuChooserOpen = false;
@@ -258,8 +343,18 @@ function setSampleSelectToRoomDefault() {
 }
 
 function isRoomAvailable(roomKey) {
+  if (!CONFIG.rooms[roomKey]) return false;
   if (!state.roomCountsLoaded) return true;
   return Object.prototype.hasOwnProperty.call(state.roomCounts, CONFIG.rooms[roomKey].roomId);
+}
+
+function isRoomFull(roomKey) {
+  if (!isRoomAvailable(roomKey)) return false;
+  return (state.roomCounts[CONFIG.rooms[roomKey].roomId] || 0) >= CONFIG.maxRoomPlayers;
+}
+
+function isRoomSelectable(roomKey) {
+  return isRoomAvailable(roomKey) && !isRoomFull(roomKey);
 }
 
 function connect() {
@@ -268,8 +363,12 @@ function connect() {
 
   state.ws.addEventListener("open", () => {
     state.connected = true;
-    setConnection("online", "接続済み", `既存サーバー / ${currentRoomId()}`);
+    setConnection("online", "接続済み", "NEOロビー / 6部屋");
     send({ type: "get_room_counts" });
+    clearInterval(state.roomCountsTimer);
+    state.roomCountsTimer = setInterval(() => {
+      if (state.appMode === "setup") send({ type: "get_room_counts" });
+    }, 5000);
     renderAll();
   });
 
@@ -280,6 +379,8 @@ function connect() {
 
   state.ws.addEventListener("close", () => {
     state.connected = false;
+    clearInterval(state.roomCountsTimer);
+    state.roomCountsTimer = null;
     setConnection("error", "切断されました", "ページを再読み込みすると再接続します");
     log("system", "サーバーとの接続が切れました。");
     renderAll();
@@ -287,6 +388,8 @@ function connect() {
 
   state.ws.addEventListener("error", () => {
     state.connected = false;
+    clearInterval(state.roomCountsTimer);
+    state.roomCountsTimer = null;
     setConnection("error", "接続エラー", "サーバーに接続できませんでした");
     renderAll();
   });
@@ -304,8 +407,14 @@ function handleMessage(msg) {
       state.roomCpuProfiles = msg.cpu_profiles || {};
       state.roomHnpChallengeEnabled = msg.hnp_challenge_enabled || {};
       state.roomRegisteredNumberLimits = msg.registered_number_limits || {};
-      if (!isRoomAvailable(state.selectedRoomKey) && isRoomAvailable("advanced")) {
-        state.selectedRoomKey = "advanced";
+      if (!isRoomSelectable(state.selectedRoomKey)) {
+        const fallbackRoomKey = currentDifficultyOption().roomKeys.find(isRoomSelectable)
+          || Object.keys(CONFIG.rooms).find(isRoomSelectable);
+        if (fallbackRoomKey) {
+          state.selectedRoomKey = fallbackRoomKey;
+          state.selectedDifficultyKey = CONFIG.rooms[fallbackRoomKey].difficultyKey;
+          state.selectedRoomsByDifficulty[state.selectedDifficultyKey] = fallbackRoomKey;
+        }
       }
       state.hnpChallengeEnabled = !!state.roomHnpChallengeEnabled[currentRoomId()];
       state.sampleOptions = msg.registered_sample_options || [];
@@ -428,8 +537,11 @@ function startFlow(flow) {
     renderAll();
     return;
   }
-  if (!isRoomAvailable(state.selectedRoomKey)) {
-    log("error", `${currentRoomId()} は接続先サーバーにまだありません。サーバー反映後に選べます。`);
+  if (!isRoomSelectable(state.selectedRoomKey)) {
+    const message = isRoomFull(state.selectedRoomKey)
+      ? "選んだ部屋は満員です。別の部屋を選んでください。"
+      : `${currentRoomId()} は接続先サーバーにまだありません。サーバー反映後に選べます。`;
+    log("error", message);
     renderAll();
     return;
   }
@@ -1008,7 +1120,7 @@ function renderCpuChooser() {
 
   const selected = profiles.find((profile) => profile.key === state.selectedCpuKey);
   const description = selected?.description || "このCPUの説明はありません。";
-  const campaignPrefix = state.selectedRoomKey === "beginner" && selected?.key === "gold_planner"
+  const campaignPrefix = state.selectedDifficultyKey === "beginner" && selected?.key === "gold_planner"
     ? "【イベント開催中】 "
     : "";
   el.cpuProfileDescription.textContent = `${campaignPrefix}${description}`;
@@ -1018,40 +1130,87 @@ function renderCpuChooser() {
 function renderRoomChoice() {
   const room = currentRoomOption();
   const roomId = currentRoomId();
-  const count = state.roomCounts[roomId] ?? 0;
 
-  el.roomBeginnerBtn.classList.toggle("active", state.selectedRoomKey === "beginner");
-  el.roomAdvancedBtn.classList.toggle("active", state.selectedRoomKey === "advanced");
-  el.roomBeginnerBtn.classList.toggle("unavailable", !isRoomAvailable("beginner"));
-  el.roomAdvancedBtn.classList.toggle("unavailable", !isRoomAvailable("advanced"));
-  el.roomBeginnerBtn.disabled = state.roomJoined || !isRoomAvailable("beginner");
-  el.roomAdvancedBtn.disabled = state.roomJoined || !isRoomAvailable("advanced");
-  el.roomBeginnerBtn.setAttribute("aria-pressed", String(state.selectedRoomKey === "beginner"));
-  el.roomAdvancedBtn.setAttribute("aria-pressed", String(state.selectedRoomKey === "advanced"));
+  el.difficultyBeginnerBtn.classList.toggle("active", state.selectedDifficultyKey === "beginner");
+  el.difficultyAdvancedBtn.classList.toggle("active", state.selectedDifficultyKey === "advanced");
+  el.difficultyBeginnerBtn.disabled = state.roomJoined;
+  el.difficultyAdvancedBtn.disabled = state.roomJoined;
+  el.difficultyBeginnerBtn.setAttribute("aria-pressed", String(state.selectedDifficultyKey === "beginner"));
+  el.difficultyAdvancedBtn.setAttribute("aria-pressed", String(state.selectedDifficultyKey === "advanced"));
+  renderRoomList();
 
-  el.practiceBtn.textContent = `${room.label}に入室する`;
-  el.practiceBtn.disabled = !state.connected || !isRoomAvailable(state.selectedRoomKey);
+  el.practiceBtn.textContent = `${room.label} ルーム${room.roomNumber}に入室する`;
+  el.practiceBtn.disabled = !state.connected || !isRoomSelectable(state.selectedRoomKey);
   el.roomBadge.textContent = room.badge;
-  el.roomHeading.textContent = room.roomHeading;
+  el.roomHeading.textContent = `${room.label}ルーム ${room.roomNumber}`;
   const registeredNumberLimit = state.roomRegisteredNumberLimits[roomId];
   el.registerLimitNote.classList.toggle("hidden", !Number.isFinite(registeredNumberLimit));
   if (Number.isFinite(registeredNumberLimit)) {
     el.registerLimitNote.textContent = `${room.label}は素数・合成数あわせて${registeredNumberLimit}件まで登録できます。`;
   }
   if (state.connected && state.appMode === "setup") {
-    renderServerRoomStatus(roomId, count);
+    renderServerLobbyStatus();
   }
 }
 
-function renderServerRoomStatus(roomId, count) {
-  const population = document.createElement("span");
-  population.className = "room-population";
-  population.classList.toggle("has-players", count > 0);
-  population.textContent = `${count}人`;
-  el.serverLabel.replaceChildren(
-    document.createTextNode(`既存サーバー / ${roomId} / `),
-    population,
-  );
+function renderRoomList() {
+  const difficulty = currentDifficultyOption();
+  el.roomPickerHint.textContent = `${difficulty.label}の入室人数`;
+  el.roomList.setAttribute("aria-label", `${difficulty.label}の部屋選択`);
+  el.roomList.replaceChildren();
+
+  difficulty.roomKeys.forEach((roomKey) => {
+    const room = CONFIG.rooms[roomKey];
+    const available = isRoomAvailable(roomKey);
+    const count = available ? state.roomCounts[room.roomId] ?? 0 : null;
+    const full = available && count >= CONFIG.maxRoomPlayers;
+    const active = state.selectedRoomKey === roomKey;
+    const status = !available ? "準備中" : full ? "満員" : count > 0 ? "参加者あり" : "空いています";
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "room-slot-card";
+    button.dataset.roomKey = roomKey;
+    button.disabled = state.roomJoined || !available || full;
+    button.classList.toggle("active", active);
+    button.classList.toggle("unavailable", !available);
+    button.classList.toggle("full", full);
+    button.classList.toggle("has-players", available && count > 0 && !full);
+    button.setAttribute("role", "radio");
+    button.setAttribute("aria-checked", String(active));
+    button.setAttribute(
+      "aria-label",
+      `ルーム${room.roomNumber}、${available ? `${count}人入室中` : "準備中"}、${status}`,
+    );
+
+    const heading = document.createElement("span");
+    heading.className = "room-slot-heading";
+    const dot = document.createElement("i");
+    dot.className = "room-status-dot";
+    dot.setAttribute("aria-hidden", "true");
+    const name = document.createElement("strong");
+    name.textContent = `ルーム ${room.roomNumber}`;
+    heading.append(dot, name);
+
+    const population = document.createElement("span");
+    population.className = "room-slot-population";
+    const populationValue = document.createElement("b");
+    populationValue.textContent = available ? String(count) : "−";
+    const populationUnit = document.createElement("small");
+    populationUnit.textContent = available ? ` / ${CONFIG.maxRoomPlayers}人` : " 人";
+    population.append(populationValue, populationUnit);
+
+    const statusLabel = document.createElement("small");
+    statusLabel.className = "room-slot-status";
+    statusLabel.textContent = status;
+    button.append(heading, population, statusLabel);
+    el.roomList.append(button);
+  });
+}
+
+function renderServerLobbyStatus() {
+  const difficulty = currentDifficultyOption();
+  el.serverLabel.textContent = `NEOロビー / ${difficulty.label}の3部屋を表示中`;
 }
 
 function renderNextHint() {

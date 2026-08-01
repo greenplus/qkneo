@@ -213,16 +213,25 @@ textarea,
   padding: 0 12px;
 }
 
-.room-choice,
+.difficulty-choice,
 .action-stack {
   display: grid;
-  grid-template-columns: 1fr;
   gap: 10px;
   margin-top: 16px;
 }
 
-.room-choice-card {
+.difficulty-choice {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+}
+
+.action-stack {
+  grid-template-columns: 1fr;
+}
+
+.difficulty-choice-card {
   display: grid;
+  align-content: start;
   gap: 3px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -232,34 +241,39 @@ textarea,
   text-align: left;
 }
 
-.room-choice-card.active {
+.difficulty-choice-card:hover:not(:disabled),
+.room-slot-card:hover:not(:disabled) {
+  border-color: #76aa90;
+}
+
+.difficulty-choice-card.active {
   border-color: var(--green);
   background: var(--mint);
   box-shadow: inset 0 0 0 1px var(--green);
 }
 
-.room-choice-card.unavailable {
+.difficulty-choice-card.unavailable {
   background: #f5f7f6;
   color: var(--muted);
 }
 
-.room-choice-card span {
+.difficulty-choice-card span {
   color: var(--green-dark);
   font-size: 0.76rem;
   font-weight: 900;
 }
 
-.room-choice-card strong {
+.difficulty-choice-card strong {
   font-size: 1rem;
 }
 
-.room-choice-card small {
+.difficulty-choice-card small {
   color: var(--muted);
   font-size: 0.76rem;
   font-weight: 750;
 }
 
-.room-choice-card .campaign-room-badge {
+.difficulty-choice-card .campaign-room-badge {
   display: inline-block;
   margin-left: 5px;
   border-radius: 999px;
@@ -271,14 +285,149 @@ textarea,
   vertical-align: 1px;
 }
 
-.room-choice-card .campaign-room-copy {
+.difficulty-choice-card .campaign-room-copy {
   margin-top: 4px;
   color: #765a08;
 }
 
-.room-choice-card .campaign-room-period {
+.difficulty-choice-card .campaign-room-period {
   margin-top: 4px;
   color: var(--green-dark);
+}
+
+.room-picker {
+  margin-top: 12px;
+  border: 1px solid #cfe1d8;
+  border-radius: 10px;
+  background: #f7fbf9;
+  padding: 12px;
+}
+
+.room-picker-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 9px;
+}
+
+.room-picker-heading strong {
+  color: var(--green-dark);
+  font-size: 0.88rem;
+}
+
+.room-picker-heading small {
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 750;
+}
+
+.room-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.room-slot-card {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  min-width: 0;
+  min-height: 92px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  padding: 10px 6px 8px;
+  color: var(--ink);
+  text-align: center;
+  transition: border-color 120ms ease, background-color 120ms ease, box-shadow 120ms ease;
+}
+
+.room-slot-card.active {
+  border-color: var(--green);
+  background: var(--mint);
+  box-shadow: inset 0 0 0 1px var(--green);
+}
+
+.room-slot-card:disabled {
+  opacity: 1;
+}
+
+.room-slot-card.unavailable {
+  border-style: dashed;
+  background: #f3f6f4;
+  color: var(--muted);
+}
+
+.room-slot-card.full {
+  border-color: #e0b2ac;
+  background: #fff6f4;
+}
+
+.room-slot-heading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.room-slot-heading strong {
+  overflow: hidden;
+  font-size: 0.78rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.room-status-dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #aab5af;
+}
+
+.room-slot-card.has-players .room-status-dot,
+.room-slot-card.active .room-status-dot {
+  background: var(--green);
+}
+
+.room-slot-card.full .room-status-dot {
+  background: var(--red);
+}
+
+.room-slot-population {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  color: var(--ink);
+  line-height: 1;
+}
+
+.room-slot-population b {
+  font-size: 1.4rem;
+  font-weight: 900;
+}
+
+.room-slot-population small {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 750;
+}
+
+.room-slot-status {
+  color: var(--muted);
+  font-size: 0.67rem;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.room-slot-card.has-players .room-slot-status {
+  color: var(--green-dark);
+}
+
+.room-slot-card.full .room-slot-status {
+  color: var(--red);
 }
 
 .campaign-inline-link {
@@ -1366,6 +1515,11 @@ body[data-mode="playing"] .site-footer {
 }
 
 @media (max-width: 760px) {
+  .difficulty-choice-card .campaign-room-period,
+  .difficulty-choice-card .campaign-room-copy {
+    display: none;
+  }
+
   .connection-card {
     min-width: 0;
   }
