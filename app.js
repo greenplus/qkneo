@@ -118,6 +118,10 @@ const state = {
   players: [],
   currentRoomHasCpu: false,
   hnpChallengeEnabled: false,
+  chatMode: "room",
+  globalChatSubscribed: false,
+  globalChatJoining: false,
+  globalUnreadCount: 0,
   registeredPrimeValues: new Set(),
   registeredCompositeValues: new Set(),
   sampleOptions: [],
@@ -235,7 +239,15 @@ function bindElements() {
     "handCards",
     "remainingFinishNotice",
     "turnBadge",
-    "logBox",
+    "roomChatTab",
+    "globalChatTab",
+    "globalUnreadBadge",
+    "globalChatGate",
+    "enableGlobalChatBtn",
+    "globalQuickMessages",
+    "chatComposer",
+    "roomLogBox",
+    "globalLogBox",
     "chatInput",
     "chatBtn",
     "campaignResultDialog",
@@ -279,6 +291,12 @@ function bindEvents() {
   el.playBtn.addEventListener("click", playSelected);
   el.drawBtn.addEventListener("click", () => send({ type: "draw_card" }));
   el.passBtn.addEventListener("click", () => send({ type: "pass" }));
+  el.roomChatTab.addEventListener("click", () => switchChatMode("room"));
+  el.globalChatTab.addEventListener("click", () => switchChatMode("global"));
+  el.enableGlobalChatBtn.addEventListener("click", enableGlobalChat);
+  document.querySelectorAll("[data-global-template]").forEach((button) => {
+    button.addEventListener("click", () => sendGlobalTemplate(button.dataset.globalTemplate));
+  });
   el.chatBtn.addEventListener("click", sendChat);
   el.chatInput.addEventListener("keydown", (event) => {
     if (event.key === "Enter") sendChat();
@@ -379,6 +397,8 @@ function connect() {
 
   state.ws.addEventListener("close", () => {
     state.connected = false;
+    state.globalChatSubscribed = false;
+    state.globalChatJoining = false;
     clearInterval(state.roomCountsTimer);
     state.roomCountsTimer = null;
     setConnection("error", "切断されました", "ページを再読み込みすると再接続します");
@@ -388,6 +408,8 @@ function connect() {
 
   state.ws.addEventListener("error", () => {
     state.connected = false;
+    state.globalChatSubscribed = false;
+    state.globalChatJoining = false;
     clearInterval(state.roomCountsTimer);
     state.roomCountsTimer = null;
     setConnection("error", "接続エラー", "サーバーに接続できませんでした");
@@ -521,11 +543,31 @@ function handleMessage(msg) {
     case "chat":
       log(msg.sender || "chat", msg.message || "");
       break;
+    case "global_chat_joined":
+      state.globalChatSubscribed = true;
+      state.globalChatJoining = false;
+      state.globalUnreadCount = 0;
+      logGlobalSystem(msg.notice || "グローバルチャットを表示しました。");
+      break;
+    case "global_chat_left":
+      state.globalChatSubscribed = false;
+      state.globalChatJoining = false;
+      state.chatMode = "room";
+      break;
+    case "global_chat":
+      logGlobalChat(msg);
+      if (state.chatMode !== "global") state.globalUnreadCount += 1;
+      break;
     case "error":
       if (msg.code === "registered_number_limit") {
         el.registerStatus.textContent = msg.message || "登録数が上限を超えています";
       }
-      log("error", msg.message || "エラーが発生しました。");
+      if (state.chatMode === "global") {
+        state.globalChatJoining = false;
+        logGlobalSystem(msg.message || "エラーが発生しました。");
+      } else {
+        log("error", msg.message || "エラーが発生しました。");
+      }
       break;
   }
   renderAll();
@@ -973,6 +1015,7 @@ function renderAll() {
   el.roomPanel.classList.toggle("hidden", state.appMode === "setup");
   renderSoundToggle();
   renderRoomChoice();
+  renderChat();
   el.playStatus.textContent = state.isWaiting
     ? state.roomState === "playing"
       ? "対戦中"
@@ -1810,10 +1853,53 @@ function isMyTurn() {
   return Boolean(state.currentTurn && state.playerName && state.currentTurn === state.playerName && state.roomState === "playing");
 }
 
+function switchChatMode(mode) {
+  if (!['room', 'global'].includes(mode)) return;
+  state.chatMode = mode;
+  if (mode === "global" && state.globalChatSubscribed) state.globalUnreadCount = 0;
+  renderChat();
+}
+
+function enableGlobalChat() {
+  if (!state.connected || !state.roomJoined || state.globalChatJoining || state.globalChatSubscribed) return;
+  state.globalChatJoining = true;
+  send({ type: "join_global_chat" });
+  renderChat();
+}
+
+function sendGlobalTemplate(templateKey) {
+  if (!state.globalChatSubscribed || !templateKey) return;
+  send({ type: "global_chat", template_key: templateKey });
+}
+
+function renderChat() {
+  const isGlobal = state.chatMode === "global";
+  el.roomChatTab.classList.toggle("active", !isGlobal);
+  el.globalChatTab.classList.toggle("active", isGlobal);
+  el.roomChatTab.setAttribute("aria-selected", String(!isGlobal));
+  el.globalChatTab.setAttribute("aria-selected", String(isGlobal));
+  el.globalUnreadBadge.classList.toggle("hidden", state.globalUnreadCount === 0 || isGlobal);
+  el.globalUnreadBadge.textContent = state.globalUnreadCount > 9 ? "9+" : String(state.globalUnreadCount);
+
+  const showGate = isGlobal && !state.globalChatSubscribed;
+  el.globalChatGate.classList.toggle("hidden", !showGate);
+  el.globalQuickMessages.classList.toggle("hidden", !isGlobal || !state.globalChatSubscribed);
+  el.chatComposer.classList.toggle("hidden", showGate);
+  el.roomLogBox.classList.toggle("hidden", isGlobal);
+  el.globalLogBox.classList.toggle("hidden", !isGlobal || !state.globalChatSubscribed);
+
+  el.enableGlobalChatBtn.disabled = !state.connected || !state.roomJoined || state.globalChatJoining;
+  el.enableGlobalChatBtn.textContent = state.globalChatJoining
+    ? "接続しています…"
+    : "注意事項を確認して表示する";
+  el.chatInput.placeholder = isGlobal ? "NEO全体へのメッセージ" : "部屋へのメッセージ";
+  el.chatBtn.disabled = isGlobal && !state.globalChatSubscribed;
+}
+
 function sendChat() {
   const message = el.chatInput.value.trim();
   if (!message) return;
-  send({ type: "chat", message });
+  send({ type: state.chatMode === "global" ? "global_chat" : "chat", message });
   el.chatInput.value = "";
 }
 
@@ -1839,7 +1925,44 @@ function log(sender, message) {
   const strong = document.createElement("strong");
   strong.textContent = sender;
   line.append(strong, document.createTextNode(`: ${message}`));
-  el.logBox.prepend(line);
+  el.roomLogBox.prepend(line);
+}
+
+function logGlobalSystem(message) {
+  const line = document.createElement("div");
+  line.className = "log-line global-chat-system";
+  line.textContent = message;
+  el.globalLogBox.prepend(line);
+}
+
+function logGlobalChat(message) {
+  const line = document.createElement("div");
+  line.className = "log-line global-chat-line";
+  const meta = document.createElement("div");
+  meta.className = "global-chat-meta";
+
+  if (message.room_badge) {
+    const roomBadge = document.createElement("span");
+    roomBadge.className = "global-room-badge";
+    if (["advanced", "neutral"].includes(message.room_tone)) roomBadge.classList.add(message.room_tone);
+    roomBadge.textContent = message.room_badge;
+    meta.append(roomBadge);
+  }
+  if (message.template_badge) {
+    const templateBadge = document.createElement("span");
+    templateBadge.className = "global-template-badge";
+    templateBadge.textContent = message.template_badge;
+    meta.append(templateBadge);
+  }
+
+  const sender = document.createElement("strong");
+  sender.textContent = message.sender || "プレイヤー";
+  const body = document.createElement("div");
+  body.className = "global-chat-message";
+  body.textContent = message.message || "";
+  meta.append(sender);
+  line.append(meta, body);
+  el.globalLogBox.prepend(line);
 }
 
 function logScoreRecord(lines) {
@@ -1856,5 +1979,5 @@ function logScoreRecord(lines) {
   pre.textContent = lines.join("\n");
   entry.appendChild(pre);
 
-  el.logBox.prepend(entry);
+  el.roomLogBox.prepend(entry);
 }

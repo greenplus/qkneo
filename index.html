@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>素数大富豪NEO β版</title>
-    <link rel="stylesheet" href="./styles.css?v=neo-20260729-1" />
+    <link rel="stylesheet" href="./styles.css?v=neo-20260801-global-chat-1" />
   </head>
   <body>
     <main class="app-shell">
@@ -242,12 +242,42 @@
 
         <aside class="log-column">
           <div class="panel log-panel">
-            <h2 class="game-section-title">チャット</h2>
-            <div class="chat-row">
-              <input id="chatInput" placeholder="短いメッセージ" />
+            <div class="chat-title-row">
+              <h2 class="game-section-title">チャット</h2>
+              <div class="chat-tabs" role="tablist" aria-label="チャットの範囲">
+                <button id="roomChatTab" class="chat-tab active" type="button" role="tab" aria-selected="true" aria-controls="roomLogBox">
+                  部屋
+                </button>
+                <button id="globalChatTab" class="chat-tab" type="button" role="tab" aria-selected="false" aria-controls="globalLogBox">
+                  グローバル
+                  <span id="globalUnreadBadge" class="chat-unread hidden" aria-label="未読メッセージ"></span>
+                </button>
+              </div>
+            </div>
+            <div id="globalChatGate" class="global-chat-gate hidden">
+              <strong>NEO全体に公開されるチャットです</strong>
+              <p>
+                すべての部屋でグローバル表示を選んだ人に、表示名・現在の部屋・発言が見えます。
+                個人情報や連絡先は書き込まないでください。切り替える前の発言は表示されません。
+              </p>
+              <button id="enableGlobalChatBtn" class="secondary-button compact" type="button">
+                注意事項を確認して表示する
+              </button>
+            </div>
+            <div id="globalQuickMessages" class="global-quick-messages hidden" aria-label="募集定型文">
+              <span>募集に使える定型文</span>
+              <div class="global-template-list">
+                <button type="button" data-global-template="recruit">対戦募集</button>
+                <button type="button" data-global-template="beginner_welcome">初心者歓迎</button>
+                <button type="button" data-global-template="spectators_welcome">観戦歓迎</button>
+              </div>
+            </div>
+            <div id="chatComposer" class="chat-row">
+              <input id="chatInput" maxlength="120" autocomplete="off" placeholder="部屋へのメッセージ" />
               <button id="chatBtn" class="ghost-button compact" type="button">送信</button>
             </div>
-            <div id="logBox" class="log-box"></div>
+            <div id="roomLogBox" class="log-box" role="tabpanel" aria-labelledby="roomChatTab"></div>
+            <div id="globalLogBox" class="log-box global-log-box hidden" role="tabpanel" aria-labelledby="globalChatTab"></div>
           </div>
         </aside>
       </section>
@@ -273,6 +303,6 @@
       </div>
     </dialog>
 
-    <script src="./app.js?v=neo-20260729-1"></script>
+    <script src="./app.js?v=neo-20260801-global-chat-1"></script>
   </body>
 </html>
