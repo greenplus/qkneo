@@ -4,7 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>素数大富豪NEO β版</title>
-    <link rel="stylesheet" href="./styles.css?v=neo-20260801-global-chat-1" />
+    <link rel="stylesheet" href="./client-common/styles.css?v=shared-20260803-1" />
+    <link rel="stylesheet" href="./theme.css?v=neo-20260803-1" />
   </head>
   <body>
     <main class="app-shell">
@@ -32,8 +33,8 @@
             <input id="nameInput" maxlength="24" autocomplete="nickname" placeholder="例: マグロ" />
             <button id="randomNameBtn" class="ghost-button" type="button">おまかせ</button>
           </div>
-          <div class="difficulty-choice" role="group" aria-label="難易度選択">
-            <button id="difficultyBeginnerBtn" class="difficulty-choice-card active" type="button" aria-pressed="true">
+          <div class="room-group-choice" role="group" aria-label="難易度選択">
+            <button id="roomGroupPrimaryBtn" class="room-group-choice-card active" type="button" aria-pressed="true">
               <span>初級 <b class="campaign-room-badge">イベント対象</b></span>
               <strong>7枚 / 偶数半減</strong>
               <small>ペナルティ1枚</small>
@@ -41,7 +42,7 @@
               <small class="campaign-room-period">7/28 20:00〜8/2 20:00</small>
               <small class="campaign-room-copy">ゴールドCPUに勝利して、みんなで300勝を目指そう</small>
             </button>
-            <button id="difficultyAdvancedBtn" class="difficulty-choice-card" type="button" aria-pressed="false">
+            <button id="roomGroupSecondaryBtn" class="room-group-choice-card" type="button" aria-pressed="false">
               <span>上級</span>
               <strong>11枚 / 通常</strong>
               <small>ペナルティ通常</small>
@@ -54,7 +55,7 @@
             </div>
             <div id="roomList" class="room-list" role="radiogroup" aria-label="初級の部屋選択"></div>
           </div>
-          <a class="campaign-inline-link" href="./campaign.html">
+          <a class="campaign-inline-link" data-feature="campaign" href="./campaign.html">
             CPU勝利数キャンペーンの詳細・ランキングを見る →
           </a>
           <p class="neo-note">素数リスト制限・登録制限・アシストありのNEO用ルームです。</p>
@@ -143,7 +144,7 @@
             </div>
           </div>
 
-          <details id="registerPanel" class="panel register-panel">
+          <details id="registerPanel" class="panel register-panel" data-feature="registration">
             <summary>登録リスト</summary>
             <p class="register-help-copy">
               素数は空白・改行・カンマ区切り、合成数は
@@ -222,7 +223,7 @@
               <div id="compositeJokerControls" class="joker-controls"></div>
             </section>
 
-            <section class="assist-panel">
+            <section class="assist-panel" data-feature="assist">
               <div class="panel-heading-row">
                 <h2 class="game-section-title">候補</h2>
                 <div class="assist-actions">
@@ -248,13 +249,13 @@
                 <button id="roomChatTab" class="chat-tab active" type="button" role="tab" aria-selected="true" aria-controls="roomLogBox">
                   部屋
                 </button>
-                <button id="globalChatTab" class="chat-tab" type="button" role="tab" aria-selected="false" aria-controls="globalLogBox">
+                <button id="globalChatTab" class="chat-tab" data-feature="globalChat" type="button" role="tab" aria-selected="false" aria-controls="globalLogBox">
                   グローバル
                   <span id="globalUnreadBadge" class="chat-unread hidden" aria-label="未読メッセージ"></span>
                 </button>
               </div>
             </div>
-            <div id="globalChatGate" class="global-chat-gate hidden">
+            <div id="globalChatGate" class="global-chat-gate hidden" data-feature="globalChat">
               <strong>NEO全体に公開されるチャットです</strong>
               <p>
                 すべての部屋でグローバル表示を選んだ人に、表示名・現在の部屋・発言が見えます。
@@ -264,7 +265,7 @@
                 注意事項を確認して表示する
               </button>
             </div>
-            <div id="globalQuickMessages" class="global-quick-messages hidden" aria-label="募集定型文">
+            <div id="globalQuickMessages" class="global-quick-messages hidden" data-feature="globalChat" aria-label="募集定型文">
               <span>募集に使える定型文</span>
               <div class="global-template-list">
                 <button type="button" data-global-template="recruit">対戦募集</button>
@@ -277,7 +278,7 @@
               <button id="chatBtn" class="ghost-button compact" type="button">送信</button>
             </div>
             <div id="roomLogBox" class="log-box" role="tabpanel" aria-labelledby="roomChatTab"></div>
-            <div id="globalLogBox" class="log-box global-log-box hidden" role="tabpanel" aria-labelledby="globalChatTab"></div>
+            <div id="globalLogBox" class="log-box global-log-box hidden" data-feature="globalChat" role="tabpanel" aria-labelledby="globalChatTab"></div>
           </div>
         </aside>
       </section>
@@ -286,7 +287,7 @@
       </footer>
     </main>
 
-    <dialog id="campaignResultDialog" class="campaign-result-dialog">
+    <dialog id="campaignResultDialog" class="campaign-result-dialog" data-feature="campaign">
       <div class="campaign-result-card">
         <button id="campaignDialogCloseBtn" class="dialog-close-button" type="button" aria-label="閉じる">×</button>
         <p class="eyebrow">CPU勝利数キャンペーン</p>
@@ -303,6 +304,7 @@
       </div>
     </dialog>
 
-    <script src="./app.js?v=neo-20260801-global-chat-1"></script>
+    <script src="./product-config.js?v=neo-20260803-1"></script>
+    <script src="./client-common/app.js?v=shared-20260803-1"></script>
   </body>
 </html>
