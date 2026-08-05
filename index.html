@@ -33,6 +33,13 @@
             <input id="nameInput" maxlength="24" autocomplete="nickname" placeholder="例: マグロ" />
             <button id="randomNameBtn" class="ghost-button" type="button">おまかせ</button>
           </div>
+          <label class="guest-mode-option" for="guestModeToggle">
+            <input id="guestModeToggle" type="checkbox" />
+            <span>
+              <strong>このタブだけゲストとして使う</strong>
+              <small id="identityModeNote">保存済みの名前と大会参加情報を使います。</small>
+            </span>
+          </label>
           <div class="room-group-choice" role="group" aria-label="難易度選択">
             <button id="roomGroupPrimaryBtn" class="room-group-choice-card active" type="button" aria-pressed="true">
               <span>初級 <b class="campaign-room-badge">イベント対象</b></span>
@@ -133,6 +140,7 @@
               <button id="addCpuBtn" class="ghost-button" type="button">CPU追加</button>
               <button id="startBtn" class="primary-button" type="button">開始</button>
             </div>
+            <p id="reconnectPolicyNote" class="microcopy">切断復帰猶予を読み込み中です。</p>
             <div id="cpuChooser" class="cpu-chooser hidden">
               <div class="cpu-chooser-heading">
                 <label for="cpuProfileSelect">対戦するCPU</label>
