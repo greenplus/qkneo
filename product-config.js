@@ -90,5 +90,6 @@ window.PRIMEQK_CLIENT_CONFIG = {
     hnpChallenge: true,
     campaign: true,
     globalChat: true,
+    recruitment: true,
   },
 };
