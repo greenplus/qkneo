@@ -1591,6 +1591,16 @@ body[data-mode="playing"] .side-column {
   color: #4d5778;
 }
 
+.global-room-badge.classic {
+  background: #e9f2fb;
+  color: #285b88;
+}
+
+.global-room-badge.plus {
+  background: #eeeafd;
+  color: #57459a;
+}
+
 .global-room-badge.neutral {
   background: #f0f2f1;
   color: var(--muted);

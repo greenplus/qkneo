@@ -2708,7 +2708,9 @@ function logGlobalChat(message) {
   if (message.room_badge) {
     const roomBadge = document.createElement("span");
     roomBadge.className = "global-room-badge";
-    if (["advanced", "neutral"].includes(message.room_tone)) roomBadge.classList.add(message.room_tone);
+    if (["advanced", "classic", "plus", "neutral"].includes(message.room_tone)) {
+      roomBadge.classList.add(message.room_tone);
+    }
     roomBadge.textContent = message.room_badge;
     meta.append(roomBadge);
   }
