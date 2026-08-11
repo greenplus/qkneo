@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>素数大富豪NEO</title>
-    <link rel="stylesheet" href="./client-common/styles.css?v=shared-45c3968f4e87" />
+    <link rel="stylesheet" href="./client-common/styles.css?v=shared-4b3dbe823340" />
     <link rel="stylesheet" href="./theme.css?v=neo-20260805-2" />
   </head>
   <body>
@@ -42,12 +42,12 @@
           </label>
           <div class="room-group-choice" role="group" aria-label="難易度選択">
             <button id="roomGroupPrimaryBtn" class="room-group-choice-card active" type="button" aria-pressed="true">
-              <span>初級 <b class="campaign-room-badge">イベント対象</b></span>
+              <span>初級 <b class="campaign-room-badge">週次チャレンジ対象</b></span>
               <strong>7枚 / 偶数半減</strong>
               <small>ペナルティ1枚</small>
               <small>登録は素数・合成数あわせて500件まで</small>
-              <small class="campaign-room-period">7/28 20:00〜8/2 20:00</small>
-              <small class="campaign-room-copy">ゴールドCPUに勝利して、みんなで300勝を目指そう</small>
+              <small class="campaign-room-period">毎週 月曜6:00〜日曜24:00</small>
+              <small class="campaign-room-copy">勝利数と対局中の最大素数が毎週ランキングに残ります</small>
             </button>
             <button id="roomGroupSecondaryBtn" class="room-group-choice-card" type="button" aria-pressed="false">
               <span>上級</span>
@@ -63,7 +63,7 @@
             <div id="roomList" class="room-list" role="radiogroup" aria-label="初級の部屋選択"></div>
           </div>
           <a class="campaign-inline-link" data-feature="campaign" href="./campaign.html">
-            CPU勝利数キャンペーンの詳細・ランキングを見る →
+            週刊CPUチャレンジ・歴代ランキングを見る →
           </a>
           <p class="neo-note">素数リスト制限・登録制限・アシストありのNEO用ルームです。</p>
           <div class="action-stack">
@@ -338,7 +338,7 @@
     <dialog id="campaignResultDialog" class="campaign-result-dialog" data-feature="campaign">
       <div class="campaign-result-card">
         <button id="campaignDialogCloseBtn" class="dialog-close-button" type="button" aria-label="閉じる">×</button>
-        <p class="eyebrow">CPU勝利数キャンペーン</p>
+        <p class="eyebrow">週刊CPUチャレンジ</p>
         <h2 id="campaignResultTitle">勝利を記録しました</h2>
         <p id="campaignResultMessage" class="campaign-result-message"></p>
         <div class="campaign-result-actions">
@@ -346,13 +346,13 @@
             Xでシェア
           </a>
           <a id="campaignResultPageLink" class="secondary-button link-button" href="./campaign.html">
-            ゲージとランキングを見る
+            今週のランキングを見る
           </a>
         </div>
       </div>
     </dialog>
 
     <script src="./product-config.js?v=neo-20260805-2"></script>
-    <script src="./client-common/app.js?v=shared-45c3968f4e87"></script>
+    <script src="./client-common/app.js?v=shared-4b3dbe823340"></script>
   </body>
 </html>

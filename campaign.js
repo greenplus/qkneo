@@ -3,15 +3,13 @@ const CAMPAIGN_CONFIG = {
     new URLSearchParams(location.search).get("api")
     || "https://web-production-c8e68.up.railway.app",
   refreshIntervalMs: 15000,
-  milestones: [100, 200],
 };
 
 const campaignState = {
   serverOffsetMs: 0,
   startsAtMs: null,
   endsAtMs: null,
-  refreshTimer: null,
-  countdownTimer: null,
+  status: "loading",
 };
 
 const campaignElements = {};
@@ -20,24 +18,20 @@ document.addEventListener("DOMContentLoaded", () => {
   bindCampaignElements();
   campaignElements.campaignRetryBtn.addEventListener("click", loadCampaign);
   loadCampaign();
-  campaignState.refreshTimer = window.setInterval(
-    loadCampaign,
-    CAMPAIGN_CONFIG.refreshIntervalMs,
-  );
-  campaignState.countdownTimer = window.setInterval(updateCountdown, 1000);
+  window.setInterval(loadCampaign, CAMPAIGN_CONFIG.refreshIntervalMs);
+  window.setInterval(updateCountdown, 1000);
 });
 
 function bindCampaignElements() {
   [
     "campaignLoading",
-    "campaignScheduled",
     "campaignUnavailable",
-    "campaignActive",
-    "campaignCountdown",
-    "campaignStartAt",
-    "campaignScheduledMessage",
     "campaignErrorMessage",
     "campaignRetryBtn",
+    "campaignDashboard",
+    "campaignPeriod",
+    "campaignCountdownLabel",
+    "campaignCountdown",
     "campaignTotalLabel",
     "campaignStatusNote",
     "campaignProgressTrack",
@@ -47,6 +41,10 @@ function bindCampaignElements() {
     "campaignUpdatedAt",
     "campaignRanking",
     "campaignEmptyRanking",
+    "campaignPrimeRanking",
+    "campaignEmptyPrimeRanking",
+    "campaignHistory",
+    "campaignEmptyHistory",
   ].forEach((id) => {
     campaignElements[id] = document.getElementById(id);
   });
@@ -59,11 +57,10 @@ async function loadCampaign() {
       { cache: "no-store" },
     );
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const payload = await response.json();
-    renderCampaign(payload);
+    renderCampaign(await response.json());
   } catch (error) {
-    renderUnavailable("時間をおいて、もう一度お試しください。");
-    console.error("campaign fetch failed", error);
+    showUnavailable("時間をおいて、もう一度お試しください。");
+    console.error("weekly challenge fetch failed", error);
   }
 }
 
@@ -74,136 +71,163 @@ function renderCampaign(payload) {
   }
   campaignState.startsAtMs = payload.starts_at ? Date.parse(payload.starts_at) : null;
   campaignState.endsAtMs = payload.ends_at ? Date.parse(payload.ends_at) : null;
+  campaignState.status = payload.status;
 
-  hideAllCampaignStates();
-  if (payload.status === "scheduled") {
-    campaignElements.campaignScheduled.classList.remove("hidden");
-    campaignElements.campaignScheduledMessage.textContent = payload.message || "";
-    campaignElements.campaignStartAt.textContent = campaignState.startsAtMs
-      ? `${formatDateTime(campaignState.startsAtMs)} 開始`
-      : "開始日時は準備中です";
-    updateCountdown();
+  campaignElements.campaignLoading.classList.add("hidden");
+  campaignElements.campaignUnavailable.classList.add("hidden");
+  if (!["active", "scheduled", "finished"].includes(payload.status)) {
+    showUnavailable(payload.message || "集計情報を取得できません");
     return;
   }
 
-  if (!["active", "finished"].includes(payload.status)) {
-    renderUnavailable(payload.message || "集計情報を取得できません");
-    return;
-  }
-
-  const finished = payload.status === "finished";
-  campaignElements.campaignActive.classList.remove("hidden");
+  campaignElements.campaignDashboard.classList.remove("hidden");
+  campaignElements.campaignPeriod.textContent = payload.period_label
+    ? `${payload.period_label}｜${payload.schedule_label || ""}`
+    : payload.schedule_label || "";
   const goal = positiveNumber(payload.goal, 300);
   const totalWins = nonNegativeNumber(payload.total_wins, 0);
   const progress = Math.min(100, Math.max(0, Number(payload.progress_percent) || 0));
 
   campaignElements.campaignTotalLabel.textContent = `${totalWins} / ${goal}勝`;
-  campaignElements.campaignStatusNote.classList.toggle("finished", finished);
-  campaignElements.campaignStatusNote.textContent = finished
-    ? payload.message || "キャンペーンは終了しました。最終結果です。"
-    : campaignState.endsAtMs
-      ? `${formatDateTime(campaignState.endsAtMs)}まで`
-      : "";
+  campaignElements.campaignStatusNote.className = `campaign-status-note ${payload.status}`;
+  campaignElements.campaignStatusNote.textContent = statusMessage(payload);
   campaignElements.campaignProgressBar.style.width = `${progress}%`;
   campaignElements.campaignProgressTrack.setAttribute("aria-valuenow", String(Math.min(totalWins, goal)));
   campaignElements.campaignProgressTrack.setAttribute("aria-valuemax", String(goal));
   campaignElements.campaignProgressTrack.setAttribute("aria-label", `${goal}勝までの進捗`);
   renderMilestones(goal, totalWins);
-  campaignElements.campaignProgressCopy.textContent = finished
-    ? totalWins >= goal
-      ? `最終結果：目標達成（${totalWins}勝）`
-      : `最終結果：${totalWins}勝`
-    : totalWins >= goal
-      ? `目標達成！ 現在${totalWins}勝`
-      : `${goal}勝まであと${goal - totalWins}勝`;
+  campaignElements.campaignProgressCopy.textContent = totalWins >= goal
+    ? `目標達成！ 現在${totalWins}勝`
+    : `${goal}勝まであと${goal - totalWins}勝`;
   campaignElements.campaignUpdatedAt.textContent = payload.last_updated_at
-    ? `${finished ? "最終更新" : "更新"} ${formatDateTime(Date.parse(payload.last_updated_at))}`
-    : "まだ勝利記録はありません";
-  renderRanking(Array.isArray(payload.rankings) ? payload.rankings : []);
+    ? `更新 ${formatDateTime(Date.parse(payload.last_updated_at))}`
+    : "今週の記録はまだありません";
 
-  if (finished && campaignState.refreshTimer !== null) {
-    window.clearInterval(campaignState.refreshTimer);
-    campaignState.refreshTimer = null;
+  renderWinRanking(Array.isArray(payload.rankings) ? payload.rankings : []);
+  renderPrimeRanking(Array.isArray(payload.prime_rankings) ? payload.prime_rankings : []);
+  renderHistory(Array.isArray(payload.history) ? payload.history : [], payload.period_key);
+  updateCountdown();
+}
+
+function statusMessage(payload) {
+  if (payload.status === "scheduled") {
+    return payload.message || "月曜6:00から新しい週が始まります。";
   }
+  if (payload.status === "finished") {
+    return payload.message || "最終結果です。";
+  }
+  return campaignState.endsAtMs
+    ? `${formatDateTime(campaignState.endsAtMs)}まで。勝敗にかかわらず、最大素数も記録されます。`
+    : "開催中です。";
 }
 
 function renderMilestones(goal, totalWins) {
   campaignElements.campaignMilestones.replaceChildren();
-  CAMPAIGN_CONFIG.milestones
-    .filter((milestone) => milestone > 0 && milestone < goal)
-    .forEach((milestone) => {
-      const marker = document.createElement("span");
-      marker.className = "campaign-progress-marker";
-      marker.style.left = `${milestone / goal * 100}%`;
-      const reached = totalWins >= milestone;
-      marker.classList.toggle("reached", reached);
-
-      const label = document.createElement("span");
-      label.textContent = reached ? `${milestone}✓` : String(milestone);
-      marker.appendChild(label);
-      campaignElements.campaignMilestones.appendChild(marker);
-    });
-}
-
-function renderRanking(rankings) {
-  campaignElements.campaignRanking.replaceChildren();
-  campaignElements.campaignEmptyRanking.classList.toggle("hidden", rankings.length > 0);
-
-  rankings.forEach((entry) => {
-    const row = document.createElement("li");
-    row.className = "campaign-ranking-row";
-
-    const rank = document.createElement("span");
-    rank.className = "campaign-rank";
-    rank.textContent = `${entry.rank}位`;
-
-    const name = document.createElement("span");
-    name.className = "campaign-player-name";
-    name.textContent = String(entry.player_name || "");
-
-    const wins = document.createElement("strong");
-    wins.className = "campaign-player-wins";
-    wins.textContent = `${nonNegativeNumber(entry.wins, 0)}勝`;
-
-    row.append(rank, name, wins);
-    campaignElements.campaignRanking.appendChild(row);
+  [Math.round(goal / 3), Math.round(goal * 2 / 3)].forEach((milestone) => {
+    if (milestone <= 0 || milestone >= goal) return;
+    const marker = document.createElement("span");
+    marker.className = "campaign-progress-marker";
+    marker.style.left = `${milestone / goal * 100}%`;
+    marker.classList.toggle("reached", totalWins >= milestone);
+    const label = document.createElement("span");
+    label.textContent = totalWins >= milestone ? `${milestone}✓` : String(milestone);
+    marker.appendChild(label);
+    campaignElements.campaignMilestones.appendChild(marker);
   });
 }
 
-function renderUnavailable(message) {
-  hideAllCampaignStates();
+function renderWinRanking(rankings) {
+  campaignElements.campaignRanking.replaceChildren();
+  campaignElements.campaignEmptyRanking.classList.toggle("hidden", rankings.length > 0);
+  rankings.forEach((entry) => {
+    campaignElements.campaignRanking.appendChild(
+      rankingRow(entry.rank, entry.player_name, `${nonNegativeNumber(entry.wins, 0)}勝`),
+    );
+  });
+}
+
+function renderPrimeRanking(rankings) {
+  campaignElements.campaignPrimeRanking.replaceChildren();
+  campaignElements.campaignEmptyPrimeRanking.classList.toggle("hidden", rankings.length > 0);
+  rankings.forEach((entry) => {
+    const row = rankingRow(entry.rank, entry.player_name, "");
+    row.classList.add("prime-ranking-row");
+    const value = document.createElement("strong");
+    value.className = "campaign-prime-value";
+    value.textContent = String(entry.prime_value || "");
+    value.title = `${nonNegativeNumber(entry.digit_count, 0)}桁の素数`;
+    const digits = document.createElement("small");
+    digits.className = "campaign-digit-count";
+    digits.textContent = `${nonNegativeNumber(entry.digit_count, 0)}桁`;
+    row.lastElementChild.replaceWith(value, digits);
+    campaignElements.campaignPrimeRanking.appendChild(row);
+  });
+}
+
+function rankingRow(rankValue, playerName, resultText) {
+  const row = document.createElement("li");
+  row.className = "campaign-ranking-row";
+  const rank = document.createElement("span");
+  rank.className = "campaign-rank";
+  rank.textContent = `${rankValue}位`;
+  const name = document.createElement("span");
+  name.className = "campaign-player-name";
+  name.textContent = String(playerName || "");
+  const result = document.createElement("strong");
+  result.className = "campaign-player-wins";
+  result.textContent = resultText;
+  row.append(rank, name, result);
+  return row;
+}
+
+function renderHistory(history, currentPeriodKey) {
+  campaignElements.campaignHistory.replaceChildren();
+  const archived = history.filter((entry) => (
+    entry.period_key !== currentPeriodKey || Date.parse(entry.ends_at) <= Date.now() + campaignState.serverOffsetMs
+  ));
+  campaignElements.campaignEmptyHistory.classList.toggle("hidden", archived.length > 0);
+  archived.forEach((entry) => {
+    const item = document.createElement("article");
+    item.className = "campaign-history-card";
+    const heading = document.createElement("h3");
+    heading.textContent = entry.label || formatPeriod(entry.starts_at, entry.ends_at);
+    const total = document.createElement("strong");
+    total.textContent = `${nonNegativeNumber(entry.total_wins, 0)}勝`;
+    const detail = document.createElement("p");
+    const parts = [`参加 ${nonNegativeNumber(entry.participant_count, 0)}名`];
+    if (entry.winner_name) parts.push(`1位 ${entry.winner_name} ${entry.winner_wins}勝`);
+    if (entry.largest_prime) parts.push(`最大素数 ${entry.largest_prime}`);
+    detail.textContent = parts.join("｜");
+    item.append(heading, total, detail);
+    campaignElements.campaignHistory.appendChild(item);
+  });
+}
+
+function showUnavailable(message) {
+  campaignElements.campaignLoading.classList.add("hidden");
+  campaignElements.campaignDashboard.classList.add("hidden");
   campaignElements.campaignUnavailable.classList.remove("hidden");
   campaignElements.campaignErrorMessage.textContent = message;
 }
 
-function hideAllCampaignStates() {
-  campaignElements.campaignLoading.classList.add("hidden");
-  campaignElements.campaignScheduled.classList.add("hidden");
-  campaignElements.campaignUnavailable.classList.add("hidden");
-  campaignElements.campaignActive.classList.add("hidden");
-}
-
 function updateCountdown() {
-  if (
-    !campaignState.startsAtMs
-    || campaignElements.campaignScheduled.classList.contains("hidden")
-  ) {
-    return;
-  }
-  const remainingMs = Math.max(
-    0,
-    campaignState.startsAtMs - (Date.now() + campaignState.serverOffsetMs),
-  );
+  const target = campaignState.status === "scheduled"
+    ? campaignState.startsAtMs
+    : campaignState.endsAtMs;
+  if (!Number.isFinite(target)) return;
+  const remainingMs = Math.max(0, target - (Date.now() + campaignState.serverOffsetMs));
   const totalSeconds = Math.floor(remainingMs / 1000);
   const days = Math.floor(totalSeconds / 86400);
   const hours = Math.floor((totalSeconds % 86400) / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
+  campaignElements.campaignCountdownLabel.textContent = campaignState.status === "scheduled"
+    ? "次週スタートまで"
+    : "今週の締切まで";
   campaignElements.campaignCountdown.textContent = [
     `${days}日`,
     `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`,
   ].join(" ");
-
   if (remainingMs === 0) loadCampaign();
 }
 
@@ -211,13 +235,16 @@ function formatDateTime(timestamp) {
   if (!Number.isFinite(timestamp)) return "";
   return new Intl.DateTimeFormat("ja-JP", {
     timeZone: "Asia/Tokyo",
-    year: "numeric",
-    month: "long",
+    month: "numeric",
     day: "numeric",
     weekday: "short",
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(timestamp));
+}
+
+function formatPeriod(startsAt, endsAt) {
+  return `${formatDateTime(Date.parse(startsAt))}〜${formatDateTime(Date.parse(endsAt))}`;
 }
 
 function nonNegativeNumber(value, fallback) {

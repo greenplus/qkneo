@@ -1,334 +1,166 @@
 .campaign-shell {
-  width: min(100%, 880px);
+  width: min(1120px, calc(100% - 32px));
   margin: 0 auto;
-  padding: 18px 12px 42px;
+  padding: 28px 0 48px;
 }
 
 .campaign-hero {
-  display: grid;
-  gap: 20px;
-  align-items: end;
-  padding: 34px 4px 28px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 34px;
+  margin-bottom: 20px;
+  border-radius: 28px;
+  color: #fff;
+  background:
+    radial-gradient(circle at 82% 18%, rgba(255, 222, 89, 0.34), transparent 26%),
+    linear-gradient(135deg, #173b63, #0c8176 72%, #18a98f);
+  box-shadow: 0 18px 42px rgba(18, 62, 83, 0.2);
 }
 
 .campaign-hero h1 {
-  color: var(--green-dark);
-  font-size: clamp(2.6rem, 10vw, 5.6rem);
-  line-height: 0.92;
+  margin: 4px 0 12px;
+  font-size: clamp(2.3rem, 7vw, 4.7rem);
+  line-height: 0.94;
+  letter-spacing: -0.04em;
 }
 
 .campaign-kicker {
-  margin-bottom: 8px;
-  color: #9a7415;
+  margin: 0;
+  color: #138373;
   font-size: 0.75rem;
-  font-weight: 950;
-  letter-spacing: 0.11em;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
 }
 
-.campaign-lead {
-  max-width: 620px;
-  margin-top: 18px;
-  color: var(--muted);
-  font-size: 1rem;
-  line-height: 1.8;
-}
+.campaign-hero .campaign-kicker { color: #bfffea; }
+.campaign-lead { max-width: 670px; margin: 0; line-height: 1.8; opacity: 0.94; }
+.campaign-play-link { flex: 0 0 auto; background: #fff; color: #155970; }
 
-.campaign-play-link {
-  min-width: 180px;
-}
-
-.campaign-state-panel {
-  display: grid;
-  justify-items: center;
-  gap: 12px;
-  padding: 34px 22px;
-  text-align: center;
-}
-
-.campaign-state-panel h2 {
-  font-size: 1.35rem;
-}
-
-.campaign-countdown {
-  color: var(--green-dark);
-  font-size: clamp(2rem, 8vw, 4.2rem);
-  font-variant-numeric: tabular-nums;
-  line-height: 1.1;
-}
-
-.campaign-date,
-.campaign-subcopy {
-  color: var(--muted);
-  line-height: 1.7;
-}
-
-.campaign-error {
-  border-color: #e5bcbc;
-  background: #fffafa;
-}
-
-.campaign-active {
-  display: grid;
-  gap: 16px;
-}
-
+.campaign-state-panel,
+.campaign-period-panel,
 .campaign-progress-panel,
 .campaign-ranking-panel,
-.campaign-rules-panel {
-  padding: 22px;
+.campaign-history-panel,
+.campaign-rules-panel { margin-top: 18px; padding: 24px; }
+
+.campaign-error { border-color: #e19090; }
+.campaign-dashboard { display: grid; gap: 0; }
+
+.campaign-period-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  border-left: 5px solid #16a085;
 }
 
+.campaign-period-panel h2 { margin: 6px 0 0; font-size: clamp(1.05rem, 3vw, 1.45rem); }
+.campaign-countdown-wrap { text-align: right; }
+.campaign-countdown-wrap small { display: block; color: #587078; }
+.campaign-countdown { display: block; margin-top: 2px; color: #174b60; font-size: clamp(1.15rem, 4vw, 1.7rem); font-variant-numeric: tabular-nums; }
+
 .campaign-progress-heading,
-.campaign-ranking-heading {
+.campaign-ranking-heading,
+.campaign-progress-footer {
   display: flex;
-  align-items: end;
+  align-items: flex-end;
   justify-content: space-between;
-  gap: 14px;
+  gap: 16px;
 }
 
 .campaign-progress-heading h2,
 .campaign-ranking-heading h2,
-.campaign-rules-panel h2 {
-  font-size: 1.18rem;
-}
-
-.campaign-total-label {
-  color: var(--green-dark);
-  font-size: clamp(1.4rem, 5vw, 2.3rem);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
+.campaign-rules-panel h2 { margin: 4px 0 0; }
+.campaign-total-label { color: #0d7568; font-size: clamp(1.4rem, 5vw, 2.2rem); white-space: nowrap; }
 
 .campaign-status-note {
-  min-height: 1.5em;
-  margin-top: 12px;
-  color: var(--muted);
-  font-size: 0.84rem;
-  font-weight: 800;
+  margin: 16px 0;
+  padding: 10px 13px;
+  border-radius: 10px;
+  color: #245a58;
+  background: #e8f8f3;
 }
-
-.campaign-status-note.finished {
-  border-radius: 8px;
-  background: #fff6cf;
-  padding: 8px 10px;
-  color: #765a08;
-}
+.campaign-status-note.scheduled { color: #69521b; background: #fff7d8; }
+.campaign-status-note.finished { color: #5c536e; background: #f1edf8; }
 
 .campaign-progress-track {
   position: relative;
-  height: 30px;
-  margin-top: 20px;
-  overflow: hidden;
-  border: 1px solid #b8d9c8;
+  height: 24px;
+  margin: 26px 0 12px;
+  overflow: visible;
   border-radius: 999px;
-  background:
-    repeating-linear-gradient(
-      135deg,
-      #edf6f1,
-      #edf6f1 10px,
-      #e2efe8 10px,
-      #e2efe8 20px
-    );
+  background: #dce9e7;
 }
 
 .campaign-progress-bar {
-  position: relative;
-  z-index: 1;
   width: 0;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #128455, #43b276, #d4b348);
-  transition: width 500ms ease;
+  background: linear-gradient(90deg, #18a88f, #f0bf42);
+  transition: width 0.5s ease;
 }
 
-.campaign-milestones {
-  position: absolute;
-  z-index: 2;
-  inset: 0;
-  pointer-events: none;
-}
+.campaign-milestones { position: absolute; inset: 0; }
+.campaign-progress-marker { position: absolute; top: -7px; width: 3px; height: 38px; background: #fff; transform: translateX(-50%); }
+.campaign-progress-marker span { position: absolute; top: -23px; left: 50%; color: #738487; font-size: 0.7rem; transform: translateX(-50%); }
+.campaign-progress-marker.reached span { color: #087b6a; font-weight: 800; }
+.campaign-progress-copy, .campaign-updated-at { margin: 0; }
+.campaign-progress-copy { font-weight: 800; }
+.campaign-updated-at { color: #718084; font-size: 0.82rem; }
 
-.campaign-progress-marker {
-  position: absolute;
-  top: 3px;
-  bottom: 3px;
-  border-left: 1px dashed #6f8f7f;
-  transform: translateX(-50%);
-}
-
-.campaign-progress-marker span {
-  position: absolute;
-  top: 50%;
-  left: 0;
-  min-width: 30px;
-  border: 1px solid #b8d9c8;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.94);
-  padding: 1px 4px;
-  color: #557064;
-  font-size: 0.64rem;
-  font-weight: 950;
-  line-height: 1.35;
-  text-align: center;
-  transform: translate(-50%, -50%);
-}
-
-.campaign-progress-marker.reached {
-  border-left-color: #7a5b00;
-  border-left-style: solid;
-}
-
-.campaign-progress-marker.reached span {
-  border-color: #d4b348;
-  background: #ffe789;
-  color: #604700;
-}
-
-.campaign-progress-copy {
-  margin-top: 9px;
-  color: var(--muted);
-  font-size: 0.88rem;
-  text-align: right;
-}
-
-.campaign-updated-at {
-  color: var(--muted);
-  font-size: 0.75rem;
-  text-align: right;
-}
-
-.campaign-ranking-list {
-  display: grid;
-  gap: 7px;
-  margin: 18px 0 0;
-  padding: 0;
-  list-style: none;
-}
-
+.campaign-ranking-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.campaign-ranking-description { margin: 10px 0 16px; color: #627579; line-height: 1.6; }
+.campaign-ranking-list { display: grid; gap: 8px; padding: 0; margin: 0; list-style: none; }
 .campaign-ranking-row {
   display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) auto;
-  gap: 10px;
+  grid-template-columns: 52px minmax(0, 1fr) auto;
   align-items: center;
+  gap: 10px;
   min-height: 48px;
-  border-bottom: 1px solid var(--line);
-  padding: 6px 4px;
+  padding: 8px 12px;
+  border: 1px solid #dce9e7;
+  border-radius: 12px;
+  background: #fbfefd;
+}
+.campaign-ranking-row:nth-child(-n + 3) { border-color: #ead899; background: #fffdf5; }
+.campaign-rank { color: #64777b; font-weight: 900; }
+.campaign-player-name { min-width: 0; overflow: hidden; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.campaign-player-wins { color: #087c6c; font-size: 1.05rem; }
+.campaign-empty-ranking { margin: 14px 0 0; padding: 18px; color: #708083; text-align: center; border: 1px dashed #bfd2cf; border-radius: 12px; }
+
+.prime-ranking-row { grid-template-columns: 52px minmax(90px, 0.7fr) minmax(0, 1.3fr) auto; }
+.campaign-prime-value { min-width: 0; overflow: hidden; color: #675013; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9rem; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
+.campaign-digit-count { padding: 3px 7px; border-radius: 999px; color: #665115; background: #f8eab3; font-weight: 800; white-space: nowrap; }
+
+.campaign-history-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+.campaign-history-card { padding: 16px; border: 1px solid #dce9e7; border-radius: 14px; background: #fbfefd; }
+.campaign-history-card h3 { margin: 0 0 12px; font-size: 0.95rem; }
+.campaign-history-card strong { color: #0b7568; font-size: 1.6rem; }
+.campaign-history-card p { margin: 10px 0 0; color: #637578; font-size: 0.82rem; line-height: 1.6; overflow-wrap: anywhere; }
+
+.campaign-rules-panel ol { padding-left: 1.4em; }
+.campaign-rules-panel li, .campaign-rules-panel p { line-height: 1.8; }
+.campaign-rules-panel p { margin-bottom: 0; color: #627477; }
+.campaign-footer { display: flex; justify-content: center; gap: 22px; padding: 28px 0 4px; }
+
+@media (max-width: 780px) {
+  .campaign-shell { width: min(100% - 20px, 1120px); padding-top: 10px; }
+  .campaign-hero { display: grid; padding: 24px; border-radius: 20px; }
+  .campaign-play-link { width: 100%; text-align: center; }
+  .campaign-period-panel, .campaign-progress-heading, .campaign-progress-footer { align-items: flex-start; flex-direction: column; }
+  .campaign-countdown-wrap { text-align: left; }
+  .campaign-ranking-grid, .campaign-history-list { grid-template-columns: 1fr; }
+  .campaign-state-panel, .campaign-period-panel, .campaign-progress-panel, .campaign-ranking-panel, .campaign-history-panel, .campaign-rules-panel { padding: 18px; }
+  .campaign-total-label { align-self: flex-start; }
 }
 
-.campaign-ranking-row:nth-child(-n + 3) {
-  border-radius: 8px;
-  padding: 9px 10px;
-}
-
-.campaign-ranking-row:nth-child(1) {
-  border: 1px solid #dfca79;
-  background: #fffbed;
-}
-
-.campaign-ranking-row:nth-child(2) {
-  border: 1px solid #b7c1ca;
-  background: #f7f9fa;
-}
-
-.campaign-ranking-row:nth-child(3) {
-  border: 1px solid #c98f65;
-  background: #fff7f1;
-}
-
-.campaign-rank {
-  color: var(--muted);
-  font-size: 0.86rem;
-  font-weight: 950;
-  font-variant-numeric: tabular-nums;
-}
-
-.campaign-ranking-row:nth-child(1) .campaign-rank {
-  color: #8a6710;
-}
-
-.campaign-ranking-row:nth-child(2) .campaign-rank {
-  color: #64727d;
-}
-
-.campaign-ranking-row:nth-child(3) .campaign-rank {
-  color: #96562d;
-}
-
-.campaign-player-name {
-  overflow: hidden;
-  font-weight: 850;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.campaign-player-wins {
-  color: var(--green-dark);
-  font-size: 1.02rem;
-  font-weight: 950;
-  font-variant-numeric: tabular-nums;
-}
-
-.campaign-empty-ranking {
-  margin-top: 18px;
-  border-radius: 8px;
-  background: var(--mint);
-  padding: 18px;
-  color: var(--green-dark);
-  text-align: center;
-}
-
-.campaign-rules-panel {
-  margin-top: 16px;
-}
-
-.campaign-rules-panel ol {
-  margin: 14px 0 0;
-  padding-left: 1.4em;
-}
-
-.campaign-rules-panel li,
-.campaign-rules-panel p {
-  line-height: 1.8;
-}
-
-.campaign-rules-panel p {
-  margin-top: 12px;
-  color: var(--muted);
-}
-
-.campaign-footer {
-  display: flex;
-  justify-content: center;
-  gap: 18px;
-  padding: 24px 4px 0;
-  font-size: 0.82rem;
-  font-weight: 800;
-}
-
-@media (min-width: 720px) {
-  .campaign-hero {
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-
-  .campaign-progress-panel,
-  .campaign-ranking-panel,
-  .campaign-rules-panel {
-    padding: 28px;
-  }
-}
-
-@media (max-width: 520px) {
-  .campaign-progress-heading,
-  .campaign-ranking-heading {
-    align-items: start;
-    flex-direction: column;
-  }
-
-  .campaign-updated-at {
-    text-align: left;
-  }
-
-  .campaign-total-label {
-    align-self: end;
-  }
+@media (max-width: 430px) {
+  .campaign-ranking-row { grid-template-columns: 44px minmax(0, 1fr) auto; padding-inline: 9px; }
+  .prime-ranking-row { grid-template-columns: 44px minmax(0, 1fr) auto; }
+  .prime-ranking-row .campaign-prime-value { grid-column: 2 / 4; grid-row: 2; text-align: left; }
+  .prime-ranking-row .campaign-digit-count { grid-column: 3; grid-row: 1; }
+  .campaign-footer { flex-direction: column; align-items: center; }
 }

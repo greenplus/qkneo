@@ -3,84 +3,96 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="素数大富豪NEO・CPU勝利数キャンペーンの進捗とランキング" />
-    <title>CPU勝利数キャンペーン | 素数大富豪NEO</title>
-    <link rel="stylesheet" href="./client-common/styles.css?v=shared-45c3968f4e87" />
+    <meta name="description" content="素数大富豪NEO・毎週のCPUチャレンジ、勝利数と最大素数ランキング" />
+    <title>週刊CPUチャレンジ | 素数大富豪NEO</title>
+    <link rel="stylesheet" href="./client-common/styles.css?v=shared-4b3dbe823340" />
     <link rel="stylesheet" href="./theme.css?v=neo-20260803-1" />
-    <link rel="stylesheet" href="./campaign.css?v=campaign-20260729-1" />
+    <link rel="stylesheet" href="./campaign.css?v=weekly-20260812-1" />
   </head>
   <body>
     <main class="campaign-shell">
       <header class="campaign-hero">
         <div>
           <p class="campaign-kicker">素数大富豪NEO・初級</p>
-          <h1>CPU勝利数<br />キャンペーン</h1>
+          <h1>週刊CPU<br />チャレンジ</h1>
           <p class="campaign-lead">
-            ゴールドCPUに挑戦して、みんなで300勝を目指そう。
-            勝利数は対戦サーバーから自動で集計されます。
+            ゴールドCPUに挑み、毎週みんなで目標勝利数を目指そう。
+            勝てない日も、対局中に出したいちばん大きな素数がランキングに残ります。
           </p>
         </div>
         <a class="secondary-button link-button campaign-play-link" href="./index.html">NEOで挑戦する</a>
       </header>
 
       <section id="campaignLoading" class="panel campaign-state-panel" aria-live="polite">
-        <p>集計情報を読み込んでいます...</p>
-      </section>
-
-      <section id="campaignScheduled" class="panel campaign-state-panel hidden" aria-live="polite">
-        <p class="campaign-kicker">STARTS IN</p>
-        <h2>キャンペーン開始まで</h2>
-        <strong id="campaignCountdown" class="campaign-countdown">--日 --:--:--</strong>
-        <p id="campaignStartAt" class="campaign-date"></p>
-        <p id="campaignScheduledMessage" class="campaign-subcopy"></p>
+        <p>今週の記録を読み込んでいます…</p>
       </section>
 
       <section id="campaignUnavailable" class="panel campaign-state-panel campaign-error hidden" aria-live="polite">
         <p class="campaign-kicker">TEMPORARILY UNAVAILABLE</p>
         <h2>集計情報を取得できません</h2>
-        <p id="campaignErrorMessage" class="campaign-subcopy">
-          時間をおいて、もう一度お試しください。
-        </p>
+        <p id="campaignErrorMessage" class="campaign-subcopy"></p>
         <button id="campaignRetryBtn" class="secondary-button" type="button">再読み込み</button>
       </section>
 
-      <div id="campaignActive" class="campaign-active hidden">
+      <div id="campaignDashboard" class="campaign-dashboard hidden">
+        <section class="panel campaign-period-panel" aria-live="polite">
+          <div>
+            <p class="campaign-kicker">THIS WEEK</p>
+            <h2 id="campaignPeriod">毎週 月曜6:00〜日曜24:00</h2>
+          </div>
+          <div class="campaign-countdown-wrap">
+            <small id="campaignCountdownLabel">今週の締切まで</small>
+            <strong id="campaignCountdown" class="campaign-countdown">--日 --:--:--</strong>
+          </div>
+        </section>
+
         <section class="panel campaign-progress-panel">
           <div class="campaign-progress-heading">
             <div>
               <p class="campaign-kicker">COMMUNITY GOAL</p>
-              <h2>みんなの通算勝利数</h2>
+              <h2>今週のみんなの勝利数</h2>
             </div>
             <strong id="campaignTotalLabel" class="campaign-total-label">0 / 300勝</strong>
           </div>
           <p id="campaignStatusNote" class="campaign-status-note"></p>
-          <div
-            id="campaignProgressTrack"
-            class="campaign-progress-track"
-            role="progressbar"
-            aria-label="300勝までの進捗"
-            aria-valuemin="0"
-            aria-valuemax="300"
-            aria-valuenow="0"
-          >
+          <div id="campaignProgressTrack" class="campaign-progress-track" role="progressbar"
+            aria-label="目標勝利数までの進捗" aria-valuemin="0" aria-valuemax="300" aria-valuenow="0">
             <div id="campaignProgressBar" class="campaign-progress-bar"></div>
             <div id="campaignMilestones" class="campaign-milestones" aria-hidden="true"></div>
           </div>
-          <p id="campaignProgressCopy" class="campaign-progress-copy">300勝まであと300勝</p>
-        </section>
-
-        <section class="panel campaign-ranking-panel">
-          <div class="campaign-ranking-heading">
-            <div>
-              <p class="campaign-kicker">TOP 20</p>
-              <h2>勝利数ランキング</h2>
-            </div>
+          <div class="campaign-progress-footer">
+            <p id="campaignProgressCopy" class="campaign-progress-copy">300勝まであと300勝</p>
             <p id="campaignUpdatedAt" class="campaign-updated-at"></p>
           </div>
-          <ol id="campaignRanking" class="campaign-ranking-list"></ol>
-          <p id="campaignEmptyRanking" class="campaign-empty-ranking hidden">
-            まだ記録はありません。最初の1勝を目指そう！
-          </p>
+        </section>
+
+        <div class="campaign-ranking-grid">
+          <section class="panel campaign-ranking-panel">
+            <div class="campaign-ranking-heading">
+              <div><p class="campaign-kicker">TOP 20</p><h2>勝利数ランキング</h2></div>
+            </div>
+            <p class="campaign-ranking-description">ゴールドCPUへの今週の勝利数です。</p>
+            <ol id="campaignRanking" class="campaign-ranking-list"></ol>
+            <p id="campaignEmptyRanking" class="campaign-empty-ranking hidden">最初の1勝を目指そう！</p>
+          </section>
+
+          <section class="panel campaign-ranking-panel campaign-prime-panel">
+            <div class="campaign-ranking-heading">
+              <div><p class="campaign-kicker">BIG PRIME TOP 20</p><h2>最大素数ランキング</h2></div>
+            </div>
+            <p class="campaign-ranking-description">勝敗不問。初級の対象対局で出した最大の合法素数です。</p>
+            <ol id="campaignPrimeRanking" class="campaign-ranking-list"></ol>
+            <p id="campaignEmptyPrimeRanking" class="campaign-empty-ranking hidden">まずは1つ、素数を出してみよう！</p>
+          </section>
+        </div>
+
+        <section class="panel campaign-history-panel">
+          <div class="campaign-ranking-heading">
+            <div><p class="campaign-kicker">HALL OF WEEKS</p><h2>歴代の記録</h2></div>
+          </div>
+          <p class="campaign-ranking-description">終了した週の勝利数・参加人数・1位記録を保存しています。</p>
+          <div id="campaignHistory" class="campaign-history-list"></div>
+          <p id="campaignEmptyHistory" class="campaign-empty-ranking hidden">歴代記録は次の週から追加されます。</p>
         </section>
       </div>
 
@@ -89,9 +101,9 @@
         <ol>
           <li>素数大富豪NEOで「初級」に入室</li>
           <li>「ゴールドCPU」を追加して2人対戦を開始</li>
-          <li>ゴールドCPUに勝つと、登録名で1勝が自動記録されます</li>
+          <li>勝利数と、対局中に出した最大の合法素数が登録名で自動記録</li>
         </ol>
-        <p>同じ登録名の勝利は合算されます。Xへの共有は任意です。</p>
+        <p>同じ登録名の記録は合算されます。毎週月曜0:00に締め、6:00から新しい週が始まります。</p>
       </section>
 
       <footer class="campaign-footer">
@@ -99,7 +111,6 @@
         <a href="https://greenplus.github.io/">green+の無人島</a>
       </footer>
     </main>
-
-    <script src="./campaign.js?v=campaign-20260729-1"></script>
+    <script src="./campaign.js?v=weekly-20260812-1"></script>
   </body>
 </html>

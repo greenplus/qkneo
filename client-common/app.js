@@ -5,8 +5,8 @@ if (!PRODUCT_CONFIG) {
 }
 
 const roomGroupOrder = PRODUCT_CONFIG.roomGroupOrder || Object.keys(PRODUCT_CONFIG.roomGroups || {});
-if (roomGroupOrder.length < 1 || roomGroupOrder.length > 2) {
-  throw new Error("the shared lobby requires one or two room groups");
+if (roomGroupOrder.length < 1 || roomGroupOrder.length > 3) {
+  throw new Error("the shared lobby requires one to three room groups");
 }
 
 const CONFIG = {
@@ -77,6 +77,11 @@ const state = {
   tournament: null,
   tournamentParticipantId: null,
   tournamentCountdownTimer: null,
+  tournamentWorkspaceMode: "lobby",
+  tournamentLobbyUnreadCount: 0,
+  tournamentMatchUnreadCount: 0,
+  tournamentObservedMatchId: null,
+  tournamentObservedMatch: null,
   cpuChooserOpen: false,
   selectedCpuKey: "",
   players: [],
@@ -301,6 +306,8 @@ function bindElements() {
     "serverLabel",
     "setupPanel",
     "roomPanel",
+    "sideColumn",
+    "logColumn",
     "registerPanel",
     "nameInput",
     "randomNameBtn",
@@ -308,6 +315,13 @@ function bindElements() {
     "identityModeNote",
     "roomGroupPrimaryBtn",
     "roomGroupSecondaryBtn",
+    "roomGroupTertiaryBtn",
+    "tournamentTabNotice",
+    "tournamentWorkspaceTabs",
+    "tournamentLobbyViewTab",
+    "tournamentMatchViewTab",
+    "tournamentLobbyUnreadBadge",
+    "tournamentMatchViewBadge",
     "roomPickerHint",
     "roomList",
     "practiceBtn",
@@ -398,6 +412,7 @@ function bindElements() {
     "tournamentTitle",
     "tournamentStatusBadge",
     "tournamentSchedule",
+    "tournamentRuleSummary",
     "tournamentMessage",
     "tournamentRegisterBtn",
     "tournamentWithdrawBtn",
@@ -405,13 +420,31 @@ function bindElements() {
     "tournamentLeagueTable",
     "tournamentStandings",
     "tournamentTimingNote",
+    "tournamentSpectatorPanel",
+    "tournamentMatchCards",
+    "tournamentSpectatorEmpty",
+    "tournamentSpectatorBoard",
+    "tournamentSpectatorTitle",
+    "tournamentSpectatorStatus",
+    "tournamentSpectatorTurn",
+    "tournamentSpectatorDeck",
+    "tournamentSpectatorFieldNumber",
+    "tournamentSpectatorViewerCount",
+    "tournamentSpectatorFieldCards",
+    "tournamentSpectatorPlayers",
+    "tournamentSpectatorScore",
+    "gameColumn",
+    "tournamentMatchLogPanel",
+    "tournamentMatchLogBox",
+    "chatPanelTitle",
+    "roomChatTabLabel",
   ].forEach((id) => {
     el[id] = document.getElementById(id);
   });
 }
 
 function bindEvents() {
-  const [primaryGroupKey, secondaryGroupKey] = CONFIG.roomGroupOrder;
+  const [primaryGroupKey, secondaryGroupKey, tertiaryGroupKey] = CONFIG.roomGroupOrder;
   el.randomNameBtn.addEventListener("click", setRandomName);
   el.nameInput.addEventListener("change", persistCurrentName);
   el.nameInput.addEventListener("blur", persistCurrentName);
@@ -419,6 +452,9 @@ function bindEvents() {
   el.roomGroupPrimaryBtn.addEventListener("click", () => selectRoomGroup(primaryGroupKey));
   if (secondaryGroupKey) {
     el.roomGroupSecondaryBtn.addEventListener("click", () => selectRoomGroup(secondaryGroupKey));
+  }
+  if (tertiaryGroupKey && el.roomGroupTertiaryBtn) {
+    el.roomGroupTertiaryBtn.addEventListener("click", () => selectRoomGroup(tertiaryGroupKey));
   }
   el.roomList.addEventListener("click", (event) => {
     const roomButton = event.target.closest("[data-room-key]");
@@ -469,6 +505,18 @@ function bindEvents() {
   el.campaignDialogCloseBtn.addEventListener("click", closeCampaignResult);
   if (el.tournamentRegisterBtn) el.tournamentRegisterBtn.addEventListener("click", registerForTournament);
   if (el.tournamentWithdrawBtn) el.tournamentWithdrawBtn.addEventListener("click", withdrawFromTournament);
+  if (el.tournamentLobbyViewTab) {
+    el.tournamentLobbyViewTab.addEventListener("click", () => switchTournamentWorkspace("lobby"));
+  }
+  if (el.tournamentMatchViewTab) {
+    el.tournamentMatchViewTab.addEventListener("click", () => switchTournamentWorkspace("match"));
+  }
+  if (el.tournamentMatchCards) {
+    el.tournamentMatchCards.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-tournament-match-id]");
+      if (button) watchTournamentMatch(button.dataset.tournamentMatchId);
+    });
+  }
   const unlockSoundOnFirstRelevantClick = (event) => {
     if (event.target.closest(".room-group-choice-card, .room-slot-card")) return;
     document.removeEventListener("click", unlockSoundOnFirstRelevantClick, true);
@@ -744,12 +792,16 @@ function handleMessage(msg) {
       state.appMode = "setup";
       state.roomState = "waiting";
       state.isWaiting = false;
+      state.tournamentWorkspaceMode = "lobby";
+      state.tournamentObservedMatchId = null;
+      state.tournamentObservedMatch = null;
       if (msg.room_id) removeRoomResumeToken(msg.room_id);
       log("system", msg.message || "この参加情報は別のタブへ引き継がれました。");
       break;
     case "tournament_match_call":
       setTournamentState(msg.tournament || state.tournament);
       log("system", msg.message || "あなたの対戦です。大会パネルを確認してください。");
+      state.tournamentMatchUnreadCount += 1;
       playPlayerJoinedSound();
       break;
     case "tournament_match_ready_ack":
@@ -758,13 +810,38 @@ function handleMessage(msg) {
       break;
     case "tournament_match_started":
       setTournamentState(msg.tournament || state.tournament);
-      log("system", `第${msg.round_no}ラウンドの対戦ルームへ移動しました。`);
+      state.tournamentWorkspaceMode = "match";
+      state.tournamentMatchUnreadCount = 0;
+      state.tournamentObservedMatchId = null;
+      state.tournamentObservedMatch = null;
+      logTournamentMatch("system", `第${msg.round_no}ラウンドの対戦を開始しました。`);
       break;
     case "tournament_return_to_lobby":
       setTournamentState(msg.tournament || state.tournament);
       state.appMode = "room";
       state.roomState = "waiting";
+      state.tournamentWorkspaceMode = "lobby";
+      state.tournamentObservedMatchId = null;
+      state.tournamentObservedMatch = null;
       log("system", "大会ロビーへ戻りました。");
+      break;
+    case "tournament_match_summary":
+      updateTournamentMatchSummary(msg.match);
+      break;
+    case "tournament_match_view_update":
+      state.tournamentObservedMatchId = msg.match?.match_id || state.tournamentObservedMatchId;
+      state.tournamentObservedMatch = msg.match || null;
+      updateTournamentMatchSummary(msg.match);
+      break;
+    case "tournament_match_view_ended":
+      state.tournamentObservedMatchId = msg.match?.match_id || state.tournamentObservedMatchId;
+      state.tournamentObservedMatch = msg.match || null;
+      updateTournamentMatchSummary(msg.match);
+      if (state.tournamentWorkspaceMode !== "match") state.tournamentMatchUnreadCount += 1;
+      break;
+    case "tournament_score_record":
+      logTournamentScoreRecord(msg);
+      if (state.tournamentWorkspaceMode !== "lobby") state.tournamentLobbyUnreadCount += 1;
       break;
     case "tournament_withdrawn":
       removeTournamentResumeToken(msg.run_id);
@@ -847,10 +924,21 @@ function handleMessage(msg) {
       if (CONFIG.features.campaign) showCampaignResult(msg);
       break;
     case "score_record":
-      logScoreRecord(msg.lines || []);
+      logScoreRecord(
+        msg.lines || [],
+        msg.scope === "tournament_match" ? el.tournamentMatchLogBox : el.roomLogBox,
+      );
       break;
     case "chat":
-      log(msg.sender || "chat", msg.message || "");
+      if (msg.scope === "tournament_match") {
+        logTournamentMatch(msg.sender || "system", msg.message || "");
+        if (state.tournamentWorkspaceMode !== "match") state.tournamentMatchUnreadCount += 1;
+      } else {
+        log(msg.sender || "chat", msg.message || "");
+        if (msg.scope === "tournament_lobby" && state.tournamentWorkspaceMode !== "lobby") {
+          state.tournamentLobbyUnreadCount += 1;
+        }
+      }
       break;
     case "global_chat_joined":
       state.globalChatSubscribed = true;
@@ -884,9 +972,62 @@ function handleMessage(msg) {
 
 function setTournamentState(tournament) {
   state.tournament = tournament;
+  if (tournament?.room_id) state.tournaments[tournament.room_id] = tournament;
   if (tournament?.viewer_participant_id) {
     state.tournamentParticipantId = tournament.viewer_participant_id;
   }
+}
+
+function updateTournamentMatchSummary(match) {
+  if (!match || !state.tournament) return;
+  const matches = [...(state.tournament.active_matches || [])];
+  const index = matches.findIndex((item) => item.match_id === match.match_id);
+  if (index >= 0) matches[index] = { ...matches[index], ...match };
+  else matches.push(match);
+  state.tournament.active_matches = matches;
+  if (state.tournamentObservedMatchId === match.match_id) {
+    state.tournamentObservedMatch = { ...(state.tournamentObservedMatch || {}), ...match };
+  }
+}
+
+function ownTournamentMatch() {
+  if (!state.tournamentParticipantId) return null;
+  return (state.tournament?.active_matches || []).find((match) => (
+    [match.player1_id, match.player2_id].includes(state.tournamentParticipantId)
+    && ["called", "playing"].includes(match.status)
+  )) || null;
+}
+
+function switchTournamentWorkspace(mode) {
+  if (!["lobby", "match"].includes(mode) || !state.roomJoined || !isTournamentRoom()) return;
+  state.tournamentWorkspaceMode = mode;
+  if (mode === "lobby") {
+    state.tournamentLobbyUnreadCount = 0;
+  } else {
+    state.tournamentMatchUnreadCount = 0;
+    const ownMatch = ownTournamentMatch();
+    if (state.roomState !== "playing" && !state.tournamentObservedMatchId) {
+      const match = ownMatch || (state.tournament?.active_matches || []).find((item) => (
+        ["called", "playing"].includes(item.status)
+      ));
+      if (match) watchTournamentMatch(match.match_id);
+    }
+  }
+  renderAll();
+}
+
+function watchTournamentMatch(matchId) {
+  if (!matchId || !state.roomJoined || !isTournamentRoom()) return;
+  const ownMatch = ownTournamentMatch();
+  if (state.roomState === "playing" && ownMatch && ownMatch.match_id !== matchId) return;
+  state.tournamentObservedMatchId = matchId;
+  state.tournamentObservedMatch = (state.tournament?.active_matches || []).find(
+    (match) => match.match_id === matchId,
+  ) || null;
+  state.tournamentWorkspaceMode = "match";
+  state.tournamentMatchUnreadCount = 0;
+  send({ type: "tournament_watch_match", match_id: matchId });
+  renderAll();
 }
 
 function readTournamentTokens() {
@@ -1057,10 +1198,10 @@ function showCampaignResult(msg) {
   if (!CONFIG.features.campaign) return;
   const recorded = msg.status === "recorded";
   el.campaignResultTitle.textContent = recorded
-    ? "ゴールドCPUへの勝利を記録しました！"
+    ? "今週の勝利を記録しました！"
     : "勝利記録を保存できませんでした";
   el.campaignResultMessage.textContent = recorded
-    ? `「${msg.player_name}」で個人通算${msg.player_wins}勝、みんなで${msg.total_wins}/${msg.goal}勝です。`
+    ? `「${msg.player_name}」で今週${msg.player_wins}勝、みんなで${msg.total_wins}/${msg.goal}勝です。`
     : msg.message || "時間をおいて、キャンペーンページをご確認ください。";
 
   const campaignUrl = msg.campaign_url || "./campaign.html";
@@ -1068,7 +1209,7 @@ function showCampaignResult(msg) {
   el.campaignShareBtn.classList.toggle("hidden", !recorded);
 
   if (recorded) {
-    const shareText = `「${msg.player_name}」でゴールドCPUに勝利！ 個人通算${msg.player_wins}勝、みんなで${msg.total_wins}/${msg.goal}勝。 #素数大富豪NEO`;
+    const shareText = `「${msg.player_name}」でゴールドCPUに勝利！ 今週${msg.player_wins}勝、みんなで${msg.total_wins}/${msg.goal}勝。 #素数大富豪NEO`;
     const params = new URLSearchParams({
       text: shareText,
       url: CONFIG.shareUrl,
@@ -1255,6 +1396,11 @@ function leaveRoom() {
   state.fieldCards = [];
   state.handCounts = [];
   state.firstPlayerId = null;
+  state.tournamentWorkspaceMode = "lobby";
+  state.tournamentLobbyUnreadCount = 0;
+  state.tournamentMatchUnreadCount = 0;
+  state.tournamentObservedMatchId = null;
+  state.tournamentObservedMatch = null;
   clearFlowPreview(false);
   clearSelection();
   renderAll();
@@ -1598,6 +1744,7 @@ function renderAll() {
   renderCompositeZone();
   renderAssist();
   renderTournament();
+  renderTournamentWorkspace();
 }
 
 function renderRecruitments() {
@@ -1703,6 +1850,9 @@ function renderTournament() {
   el.tournamentTitle.textContent = tournament?.title || "定期大会";
   el.tournamentStatusBadge.textContent = statusLabels[tournament?.status] || "未開催";
   el.tournamentStatusBadge.dataset.status = tournament?.status || "unavailable";
+  if (el.tournamentRuleSummary) {
+    el.tournamentRuleSummary.textContent = tournament?.rule?.summary || "未設定";
+  }
 
   if (!tournament || tournament.status === "unavailable") {
     el.tournamentSchedule.textContent = "次回日程は未設定です。";
@@ -1777,6 +1927,161 @@ function renderTournament() {
     const waitingSeconds = tournament?.waiting_disconnect_grace_seconds ?? 180;
     el.tournamentTimingNote.textContent = `対戦呼び出しは両者確認で即開始、未確認でも両者接続中なら${readySeconds}秒後に自動開始します。切断復帰猶予は対戦中${formatDuration(playingSeconds)}、ロビー待機中${formatDuration(waitingSeconds)}です。復帰トークンはこのブラウザだけに保存します。`;
   }
+}
+
+function renderTournamentWorkspace() {
+  if (!el.tournamentWorkspaceTabs) return;
+  const visible = state.roomJoined && isTournamentRoom();
+  el.tournamentWorkspaceTabs.classList.toggle("hidden", !visible);
+  if (!visible) {
+    el.sideColumn?.classList.remove("hidden");
+    el.gameColumn?.classList.remove("hidden");
+    el.logColumn?.classList.remove("hidden");
+    el.tournamentSpectatorPanel?.classList.add("hidden");
+    el.tournamentMatchLogPanel?.classList.add("hidden");
+    if (el.chatPanelTitle) el.chatPanelTitle.textContent = "チャット";
+    if (el.roomChatTabLabel) el.roomChatTabLabel.textContent = "部屋";
+    el.globalChatTab?.classList.remove("hidden");
+    return;
+  }
+
+  if (state.chatMode !== "room") state.chatMode = "room";
+  const lobbyVisible = state.tournamentWorkspaceMode === "lobby";
+  const ownMatchVisible = !lobbyVisible && state.roomState === "playing";
+  el.sideColumn?.classList.toggle("hidden", !lobbyVisible);
+  el.logColumn?.classList.toggle("hidden", !lobbyVisible);
+  el.gameColumn?.classList.toggle("hidden", !ownMatchVisible);
+  el.tournamentSpectatorPanel?.classList.toggle("hidden", lobbyVisible || ownMatchVisible);
+  el.tournamentMatchLogPanel?.classList.toggle("hidden", !ownMatchVisible);
+  el.tournamentLobbyViewTab.classList.toggle("active", lobbyVisible);
+  el.tournamentMatchViewTab.classList.toggle("active", !lobbyVisible);
+  el.tournamentLobbyViewTab.setAttribute("aria-pressed", String(lobbyVisible));
+  el.tournamentMatchViewTab.setAttribute("aria-pressed", String(!lobbyVisible));
+
+  const unread = state.tournamentLobbyUnreadCount;
+  el.tournamentLobbyUnreadBadge.classList.toggle("hidden", unread === 0 || lobbyVisible);
+  el.tournamentLobbyUnreadBadge.textContent = unread > 9 ? "9+" : String(unread);
+  const activeMatches = (state.tournament?.active_matches || []).filter((match) => (
+    ["called", "playing"].includes(match.status)
+  ));
+  const ownMatch = ownTournamentMatch();
+  const matchBadge = state.roomState === "playing"
+    ? (isMyTurn() ? "あなたの手番" : "対戦中")
+    : ownMatch?.status === "called"
+      ? "呼出中"
+      : activeMatches.length
+        ? `${activeMatches.length}試合`
+        : state.tournamentMatchUnreadCount
+          ? "更新あり"
+          : "";
+  el.tournamentMatchViewBadge.textContent = matchBadge;
+  el.tournamentMatchViewBadge.classList.toggle("hidden", !matchBadge);
+  if (el.chatPanelTitle) el.chatPanelTitle.textContent = "大会ロビー";
+  if (el.roomChatTabLabel) el.roomChatTabLabel.textContent = "進行・チャット";
+  el.globalChatTab?.classList.add("hidden");
+  renderChat();
+  renderTournamentSpectator(activeMatches);
+}
+
+function renderTournamentSpectator(activeMatches) {
+  if (!el.tournamentMatchCards) return;
+  el.tournamentMatchCards.replaceChildren();
+  activeMatches.forEach((match) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "tournament-match-card";
+    button.dataset.tournamentMatchId = match.match_id;
+    button.classList.toggle("active", state.tournamentObservedMatchId === match.match_id);
+
+    const round = document.createElement("small");
+    round.textContent = `第${match.round_no}ラウンド・第${match.table_no || "-"}卓`;
+    const names = document.createElement("strong");
+    names.textContent = `${match.player1_name} vs ${match.player2_name}`;
+    const status = document.createElement("span");
+    status.className = "tournament-match-card-status";
+    const handText = (match.hand_counts || []).length
+      ? (match.hand_counts || []).map((item) => `${item.display_name} ${item.count}枚`).join(" / ")
+      : "参加確認を待っています";
+    status.textContent = match.status === "playing"
+      ? `${match.current_turn ? `${match.current_turn}の手番` : "対戦中"} · ${handText}`
+      : handText;
+    button.append(round, names, status);
+    el.tournamentMatchCards.appendChild(button);
+  });
+
+  const selected = state.tournamentObservedMatch
+    || activeMatches.find((match) => match.match_id === state.tournamentObservedMatchId)
+    || null;
+  el.tournamentSpectatorEmpty.classList.toggle("hidden", Boolean(selected));
+  el.tournamentSpectatorEmpty.textContent = activeMatches.length
+    ? "観戦する対戦を選んでください。"
+    : "現在進行中の対戦はありません。";
+  el.tournamentSpectatorBoard.classList.toggle("hidden", !selected);
+  if (!selected) {
+    el.tournamentSpectatorStatus.textContent = activeMatches.length ? "選択待ち" : "待機中";
+    el.tournamentSpectatorStatus.dataset.status = "unavailable";
+    return;
+  }
+
+  const statusLabels = {
+    called: "呼び出し中",
+    playing: "対戦中",
+    completed: "終了",
+    skipped: "スキップ",
+  };
+  el.tournamentSpectatorStatus.textContent = statusLabels[selected.status] || selected.status || "待機中";
+  el.tournamentSpectatorStatus.dataset.status = selected.status || "unavailable";
+  el.tournamentSpectatorTitle.textContent = `第${selected.round_no}ラウンド ${selected.player1_name} vs ${selected.player2_name}`;
+  el.tournamentSpectatorTurn.textContent = selected.winner_name
+    ? `勝者 ${selected.winner_name}`
+    : selected.current_turn
+      ? `${selected.current_turn}の手番`
+      : "開始待ち";
+  el.tournamentSpectatorDeck.textContent = selected.deck_count ?? "-";
+  el.tournamentSpectatorFieldNumber.textContent = displayFieldNumber(selected.field_number);
+  el.tournamentSpectatorViewerCount.textContent = `${selected.viewer_count || 0}人`;
+
+  const fieldCards = selected.field || [];
+  el.tournamentSpectatorFieldCards.replaceChildren();
+  if (!fieldCards.length) {
+    el.tournamentSpectatorFieldCards.textContent = "まだ何も出ていません";
+    el.tournamentSpectatorFieldCards.classList.add("empty");
+  } else {
+    el.tournamentSpectatorFieldCards.classList.remove("empty");
+    setCardRowColumns(el.tournamentSpectatorFieldCards, fieldCards.length);
+    fieldCards.forEach((card, index) => {
+      el.tournamentSpectatorFieldCards.appendChild(cardButton(
+        { ...card, card_id: `spectator-${selected.match_id}-${index}` },
+        { staticOnly: true, field: true },
+      ));
+    });
+  }
+
+  const counts = new Map((selected.hand_counts || []).map((item) => [item.participant_id, item.count]));
+  const connected = new Set(selected.connected_player_ids || []);
+  el.tournamentSpectatorPlayers.replaceChildren();
+  [
+    [selected.player1_id, selected.player1_name],
+    [selected.player2_id, selected.player2_name],
+  ].forEach(([participantId, name]) => {
+    const player = document.createElement("div");
+    player.className = "tournament-spectator-player";
+    player.classList.toggle("current", selected.current_turn_participant_id === participantId);
+    const playerName = document.createElement("strong");
+    playerName.textContent = name || "プレイヤー";
+    const detail = document.createElement("small");
+    detail.textContent = counts.has(participantId) ? `残り ${counts.get(participantId)}枚` : "開始待ち";
+    const connection = document.createElement("small");
+    connection.textContent = connected.has(participantId) ? "接続中" : "切断中・復帰待ち";
+    connection.classList.toggle("disconnected", !connected.has(participantId));
+    player.append(playerName, detail, connection);
+    el.tournamentSpectatorPlayers.appendChild(player);
+  });
+
+  const scoreLines = selected.score_lines || [];
+  el.tournamentSpectatorScore.classList.toggle("hidden", !scoreLines.length);
+  const scorePre = el.tournamentSpectatorScore.querySelector("pre");
+  if (scorePre) scorePre.textContent = scoreLines.join("\n");
 }
 
 function tournamentPairingNote(pairing, isViewerMatch, viewerReady) {
@@ -1972,7 +2277,7 @@ function renderCpuChooser() {
   const campaignPrefix = CONFIG.features.campaign
     && state.selectedRoomGroupKey === CONFIG.roomGroupOrder[0]
     && selected?.key === "gold_planner"
-    ? "【イベント開催中】 "
+    ? "【週次チャレンジ対象】 "
     : "";
   el.cpuProfileDescription.textContent = `${campaignPrefix}${description}`;
   el.confirmCpuBtn.textContent = `${selected?.label || "CPU"}を追加`;
@@ -1981,22 +2286,32 @@ function renderCpuChooser() {
 function renderRoomChoice() {
   const room = currentRoomOption();
   const roomId = currentRoomId();
-  const [primaryGroupKey, secondaryGroupKey] = CONFIG.roomGroupOrder;
+  const groupButtons = [
+    el.roomGroupPrimaryBtn,
+    el.roomGroupSecondaryBtn,
+    el.roomGroupTertiaryBtn,
+  ];
 
-  el.roomGroupPrimaryBtn.parentElement.classList.toggle("hidden", !secondaryGroupKey);
-
-  el.roomGroupPrimaryBtn.classList.toggle("active", state.selectedRoomGroupKey === primaryGroupKey);
-  el.roomGroupSecondaryBtn.classList.toggle("active", !!secondaryGroupKey && state.selectedRoomGroupKey === secondaryGroupKey);
-  el.roomGroupPrimaryBtn.disabled = state.roomJoined;
-  el.roomGroupSecondaryBtn.disabled = state.roomJoined || !secondaryGroupKey;
-  el.roomGroupPrimaryBtn.setAttribute("aria-pressed", String(state.selectedRoomGroupKey === primaryGroupKey));
-  el.roomGroupSecondaryBtn.setAttribute("aria-pressed", String(state.selectedRoomGroupKey === secondaryGroupKey));
+  el.roomGroupPrimaryBtn.parentElement.classList.toggle("hidden", CONFIG.roomGroupOrder.length < 2);
+  groupButtons.forEach((button, index) => {
+    if (!button) return;
+    const groupKey = CONFIG.roomGroupOrder[index];
+    button.classList.toggle("hidden", !groupKey);
+    button.classList.toggle("active", !!groupKey && state.selectedRoomGroupKey === groupKey);
+    button.disabled = state.roomJoined || !groupKey;
+    button.setAttribute("aria-pressed", String(!!groupKey && state.selectedRoomGroupKey === groupKey));
+  });
+  renderTournamentTabNotice();
   renderRoomList();
 
-  el.practiceBtn.textContent = `${room.label} ルーム${room.roomNumber}に入室する`;
+  el.practiceBtn.textContent = room.tournament
+    ? "大会ロビーに入室する"
+    : `${room.label} ルーム${room.roomNumber}に入室する`;
   el.practiceBtn.disabled = !state.connected || !isRoomSelectable(state.selectedRoomKey);
   el.roomBadge.textContent = room.badge;
-  el.roomHeading.textContent = `${room.label}ルーム ${room.roomNumber}`;
+  el.roomHeading.textContent = room.tournament
+    ? "大会ロビー"
+    : `${room.label}ルーム ${room.roomNumber}`;
   const registeredNumberLimit = state.roomRegisteredNumberLimits[roomId];
   el.registerLimitNote.classList.toggle("hidden", !Number.isFinite(registeredNumberLimit));
   if (Number.isFinite(registeredNumberLimit)) {
@@ -2005,6 +2320,35 @@ function renderRoomChoice() {
   if (state.connected && state.appMode === "setup") {
     renderServerLobbyStatus();
   }
+}
+
+function renderTournamentTabNotice() {
+  if (!el.tournamentTabNotice) return;
+  const tournaments = Object.values(state.tournaments || {})
+    .filter((tournament) => tournament && ["scheduled", "registration", "running"].includes(tournament.status))
+    .sort((left, right) => {
+      if (left.status === "running" && right.status !== "running") return -1;
+      if (right.status === "running" && left.status !== "running") return 1;
+      return (Date.parse(left.starts_at) || Infinity) - (Date.parse(right.starts_at) || Infinity);
+    });
+  const tournament = tournaments[0];
+  el.tournamentTabNotice.classList.toggle("hidden", !tournament);
+  if (!tournament) {
+    el.tournamentTabNotice.textContent = "";
+    return;
+  }
+
+  const statusLabel = tournament.status === "running"
+    ? "大会進行中"
+    : tournament.status === "registration"
+      ? "参加受付中"
+      : "開催予定";
+  const schedule = tournament.status === "running"
+    ? ""
+    : ` · ${formatTournamentDate(tournament.starts_at)}開始`;
+  const title = tournament.title ? `「${tournament.title}」` : "";
+  const additionalCount = tournaments.length > 1 ? ` ほか${tournaments.length - 1}件` : "";
+  el.tournamentTabNotice.textContent = `${statusLabel}${schedule} ${title}${additionalCount}`.trim();
 }
 
 function renderRoomList() {
@@ -2045,7 +2389,7 @@ function renderRoomList() {
     button.setAttribute("aria-checked", String(active));
     button.setAttribute(
       "aria-label",
-      `ルーム${room.roomNumber}、${available ? `${count}人入室中` : "準備中"}、${status}`,
+      `${room.tournament ? "大会ロビー" : `ルーム${room.roomNumber}`}、${available ? `${count}人入室中` : "準備中"}、${status}`,
     );
 
     const heading = document.createElement("span");
@@ -2054,7 +2398,7 @@ function renderRoomList() {
     dot.className = "room-status-dot";
     dot.setAttribute("aria-hidden", "true");
     const name = document.createElement("strong");
-    name.textContent = `ルーム ${room.roomNumber}`;
+    name.textContent = room.tournament ? "大会ロビー" : `ルーム ${room.roomNumber}`;
     heading.append(dot, name);
 
     const ruleTitle = document.createElement("span");
@@ -2735,14 +3079,23 @@ function renderChat() {
   el.enableGlobalChatBtn.textContent = state.globalChatJoining
     ? "接続しています…"
     : "注意事項を確認して表示する";
-  el.chatInput.placeholder = isGlobal ? `${CONFIG.productName}全体へのメッセージ` : "部屋へのメッセージ";
+  el.chatInput.placeholder = isGlobal
+    ? `${CONFIG.productName}全体へのメッセージ`
+    : state.roomJoined && isTournamentRoom()
+      ? "大会ロビーへのメッセージ"
+      : "部屋へのメッセージ";
   el.chatBtn.disabled = isGlobal && !state.globalChatSubscribed;
 }
 
 function sendChat() {
   const message = el.chatInput.value.trim();
   if (!message) return;
-  send({ type: state.chatMode === "global" ? "global_chat" : "chat", message });
+  const type = state.chatMode === "global"
+    ? "global_chat"
+    : state.roomJoined && isTournamentRoom()
+      ? "tournament_lobby_chat"
+      : "chat";
+  send({ type, message });
   el.chatInput.value = "";
 }
 
@@ -2762,13 +3115,18 @@ function setConnection(kind, label, detail) {
   el.serverLabel.textContent = detail;
 }
 
-function log(sender, message) {
+function log(sender, message, target = el.roomLogBox) {
+  if (!target) return;
   const line = document.createElement("div");
   line.className = "log-line";
   const strong = document.createElement("strong");
   strong.textContent = sender;
   line.append(strong, document.createTextNode(`: ${message}`));
-  el.roomLogBox.prepend(line);
+  target.prepend(line);
+}
+
+function logTournamentMatch(sender, message) {
+  log(sender, message, el.tournamentMatchLogBox || el.roomLogBox);
 }
 
 function logGlobalSystem(message) {
@@ -2810,8 +3168,8 @@ function logGlobalChat(message) {
   el.globalLogBox.prepend(line);
 }
 
-function logScoreRecord(lines) {
-  if (!lines.length) return;
+function logScoreRecord(lines, target = el.roomLogBox) {
+  if (!target || !lines.length) return;
   const entry = document.createElement("details");
   entry.className = "log-line score-record";
   entry.open = true;
@@ -2824,5 +3182,21 @@ function logScoreRecord(lines) {
   pre.textContent = lines.join("\n");
   entry.appendChild(pre);
 
+  target.prepend(entry);
+}
+
+function logTournamentScoreRecord(message) {
+  if (!el.roomLogBox || !(message.lines || []).length) return;
+  const entry = document.createElement("details");
+  entry.className = "log-line score-record tournament-score-record";
+  const summary = document.createElement("summary");
+  const round = message.round_no ? `第${message.round_no}ラウンド ` : "";
+  const players = message.player1_name && message.player2_name
+    ? `${message.player1_name} vs ${message.player2_name}`
+    : "対戦";
+  summary.textContent = `${round}${players}・数譜${message.winner ? `（勝者 ${message.winner}）` : ""}`;
+  const pre = document.createElement("pre");
+  pre.textContent = message.lines.join("\n");
+  entry.append(summary, pre);
   el.roomLogBox.prepend(entry);
 }
