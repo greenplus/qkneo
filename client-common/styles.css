@@ -1775,6 +1775,25 @@ body[data-mode="playing"] .side-column {
   color: var(--ink);
 }
 
+.chat-action-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  padding: 1px 9px;
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+  font-size: 0.76rem;
+  font-weight: 850;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.chat-action-link:hover {
+  text-decoration: underline;
+}
+
 .global-chat-line {
   display: grid;
   gap: 4px;

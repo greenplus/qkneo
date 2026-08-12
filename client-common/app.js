@@ -17,6 +17,7 @@ const CONFIG = {
     registration: false,
     hnpChallenge: false,
     campaign: false,
+    largestPrimeShare: false,
     globalChat: false,
     tournament: false,
     recruitment: false,
@@ -931,10 +932,10 @@ function handleMessage(msg) {
       break;
     case "chat":
       if (msg.scope === "tournament_match") {
-        logTournamentMatch(msg.sender || "system", msg.message || "");
+        logTournamentMatch(msg.sender || "system", msg.message || "", msg.action);
         if (state.tournamentWorkspaceMode !== "match") state.tournamentMatchUnreadCount += 1;
       } else {
-        log(msg.sender || "chat", msg.message || "");
+        log(msg.sender || "chat", msg.message || "", el.roomLogBox, msg.action);
         if (msg.scope === "tournament_lobby" && state.tournamentWorkspaceMode !== "lobby") {
           state.tournamentLobbyUnreadCount += 1;
         }
@@ -3115,18 +3116,41 @@ function setConnection(kind, label, detail) {
   el.serverLabel.textContent = detail;
 }
 
-function log(sender, message, target = el.roomLogBox) {
+function largestPrimeShareHref(action) {
+  if (!CONFIG.features.largestPrimeShare || action?.kind !== "share_largest_prime") return "";
+  const primeValue = String(action.prime_value || "");
+  if (!/^\d+$/.test(primeValue)) return "";
+  const shareHashtag = String(CONFIG.shareHashtag || "").trim();
+  const shareText = `${CONFIG.productName}で ${primeValue} を出しました！${shareHashtag ? ` #${shareHashtag}` : ""}`;
+  const params = new URLSearchParams({
+    text: shareText,
+    url: CONFIG.shareUrl,
+  });
+  return `https://twitter.com/intent/tweet?${params.toString()}`;
+}
+
+function log(sender, message, target = el.roomLogBox, action = null) {
   if (!target) return;
   const line = document.createElement("div");
   line.className = "log-line";
   const strong = document.createElement("strong");
   strong.textContent = sender;
   line.append(strong, document.createTextNode(`: ${message}`));
+  const shareHref = largestPrimeShareHref(action);
+  if (shareHref) {
+    const link = document.createElement("a");
+    link.className = "chat-action-link";
+    link.href = shareHref;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.textContent = "Xで共有";
+    line.append(document.createTextNode(" "), link);
+  }
   target.prepend(line);
 }
 
-function logTournamentMatch(sender, message) {
-  log(sender, message, el.tournamentMatchLogBox || el.roomLogBox);
+function logTournamentMatch(sender, message, action = null) {
+  log(sender, message, el.tournamentMatchLogBox || el.roomLogBox, action);
 }
 
 function logGlobalSystem(message) {
