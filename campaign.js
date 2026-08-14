@@ -149,19 +149,31 @@ function renderWinRanking(rankings) {
 function renderPrimeRanking(rankings) {
   campaignElements.campaignPrimeRanking.replaceChildren();
   campaignElements.campaignEmptyPrimeRanking.classList.toggle("hidden", rankings.length > 0);
-  rankings.forEach((entry) => {
-    const row = rankingRow(entry.rank, entry.player_name, "");
-    row.classList.add("prime-ranking-row");
-    const value = document.createElement("strong");
-    value.className = "campaign-prime-value";
-    value.textContent = String(entry.prime_value || "");
-    value.title = `${nonNegativeNumber(entry.digit_count, 0)}桁の素数`;
-    const digits = document.createElement("small");
-    digits.className = "campaign-digit-count";
-    digits.textContent = `${nonNegativeNumber(entry.digit_count, 0)}桁`;
-    row.lastElementChild.replaceWith(value, digits);
-    campaignElements.campaignPrimeRanking.appendChild(row);
-  });
+  [...rankings]
+    .sort((left, right) => (
+      compareUnsignedIntegerStrings(right.prime_value, left.prime_value)
+      || nonNegativeNumber(left.rank, 0) - nonNegativeNumber(right.rank, 0)
+    ))
+    .forEach((entry) => {
+      const row = rankingRow(entry.rank, entry.player_name, "");
+      row.classList.add("prime-ranking-row");
+      const value = document.createElement("strong");
+      value.className = "campaign-prime-value";
+      value.textContent = String(entry.prime_value || "");
+      value.title = `${nonNegativeNumber(entry.digit_count, 0)}桁の素数`;
+      const digits = document.createElement("small");
+      digits.className = "campaign-digit-count";
+      digits.textContent = `${nonNegativeNumber(entry.digit_count, 0)}桁`;
+      row.lastElementChild.replaceWith(value, digits);
+      campaignElements.campaignPrimeRanking.appendChild(row);
+    });
+}
+
+function compareUnsignedIntegerStrings(leftValue, rightValue) {
+  const left = String(leftValue ?? "0").replace(/^0+(?=\d)/, "");
+  const right = String(rightValue ?? "0").replace(/^0+(?=\d)/, "");
+  if (left.length !== right.length) return left.length - right.length;
+  return left === right ? 0 : left < right ? -1 : 1;
 }
 
 function rankingRow(rankValue, playerName, resultText) {
