@@ -204,12 +204,14 @@ function updatePracticeAuthUi(message) {
 function requestInitialLobbyState() {
   send({ type: "get_room_counts" });
   requestRecruitments();
-  if (state.roomJoined) {
+  if (state.roomJoined || state.pendingFlow) {
+    const resumeToken = roomResumeToken(currentRoomId());
     send({ type: "set_name", name: state.playerName });
     send({
       type: "join_room",
       room_id: currentRoomId(),
-      ...(roomResumeToken(currentRoomId()) ? { resume_token: roomResumeToken(currentRoomId()) } : {}),
+      automatic_reconnect: true,
+      ...(resumeToken ? { resume_token: resumeToken } : {}),
     });
   }
 }
