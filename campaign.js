@@ -53,7 +53,7 @@ function bindCampaignElements() {
 async function loadCampaign() {
   try {
     const response = await fetch(
-      `${CAMPAIGN_CONFIG.apiBaseUrl}/api/campaigns/gold-cpu-100`,
+      `${CAMPAIGN_CONFIG.apiBaseUrl}/api/campaigns/gold-cpu-weekly`,
       { cache: "no-store" },
     );
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
