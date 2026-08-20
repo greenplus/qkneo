@@ -37,6 +37,7 @@ const GUEST_NAME_KEY = "prime-daifugo-" + CONFIG.productKey + "-guest-name";
 const RECRUITMENT_OWNER_KEY = "prime-daifugo-" + CONFIG.productKey + "-recruitment-owner";
 const RECRUITMENT_GUEST_OWNER_KEY = RECRUITMENT_OWNER_KEY + "-guest";
 const PRACTICE_ACCESS_TOKEN_KEY = "prime-daifugo-" + CONFIG.productKey + "-practice-access-token";
+const REGISTERED_CUSTOMIZATION_KEY = "prime-daifugo-" + CONFIG.productKey + "-registered-customizations-v1";
 const PLAYER_JOINED_SOUND_URL = CONFIG.playerJoinedSoundUrl || "./assets/sounds/player-joined.mp3";
 let playerJoinedAudio = null;
 let soundUnlockPromise = null;
@@ -102,6 +103,9 @@ const state = {
   globalUnreadCount: 0,
   registeredPrimeValues: new Set(),
   registeredCompositeValues: new Set(),
+  registeredCustomizations: readRegisteredCustomizations(),
+  acceptedRegistrationByGroup: {},
+  pendingRegistrationRequest: null,
   sampleOptions: [],
   deckCount: "-",
   fieldNumber: "",
@@ -369,6 +373,8 @@ function bindElements() {
     "saveRegisterBtn",
     "registerStatus",
     "registerLimitNote",
+    "saveCustomizationToggle",
+    "saveCustomizationNote",
     "fieldZone",
     "fieldNumber",
     "fieldCards",
@@ -491,6 +497,9 @@ function bindEvents() {
   el.startBtn.addEventListener("click", startGame);
   el.sampleBtn.addEventListener("click", loadSample);
   el.saveRegisterBtn.addEventListener("click", saveRegisteredNumbers);
+  if (el.saveCustomizationToggle) {
+    el.saveCustomizationToggle.addEventListener("change", toggleRegisteredCustomization);
+  }
   el.clearSelectionBtn.addEventListener("click", clearSelection);
   el.compositeModeBtn.addEventListener("click", toggleCompositeMode);
   el.compositeMulBtn.addEventListener("click", () => addCompositeOp("×"));
@@ -554,6 +563,116 @@ function isTournamentRoom() {
 
 function currentRoomGroupOption() {
   return CONFIG.roomGroups[state.selectedRoomGroupKey] || CONFIG.roomGroups[CONFIG.defaultRoomGroupKey];
+}
+
+function registeredCustomizationGroupKey() {
+  return currentRoomOption().roomGroupKey || state.selectedRoomGroupKey;
+}
+
+function readRegisteredCustomizations() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(REGISTERED_CUSTOMIZATION_KEY) || "{}");
+    const groups = parsed?.groups && typeof parsed.groups === "object" ? parsed.groups : parsed;
+    const result = {};
+    CONFIG.roomGroupOrder.forEach((groupKey) => {
+      const item = groups?.[groupKey];
+      if (!item || typeof item !== "object" || item.enabled !== true) return;
+      result[groupKey] = {
+        enabled: true,
+        prime_text: typeof item.prime_text === "string" ? item.prime_text : "",
+        composite_text: typeof item.composite_text === "string" ? item.composite_text : "",
+        updated_at: typeof item.updated_at === "string" ? item.updated_at : "",
+      };
+    });
+    return result;
+  } catch {
+    return {};
+  }
+}
+
+function writeRegisteredCustomizations() {
+  try {
+    localStorage.setItem(REGISTERED_CUSTOMIZATION_KEY, JSON.stringify({
+      version: 1,
+      groups: state.registeredCustomizations,
+    }));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function currentRegisteredCustomization(groupKey = registeredCustomizationGroupKey()) {
+  return state.registeredCustomizations[groupKey] || null;
+}
+
+function hasSavedRegisteredCustomization(groupKey = registeredCustomizationGroupKey()) {
+  const customization = currentRegisteredCustomization(groupKey);
+  return Boolean(customization?.enabled && customization.updated_at);
+}
+
+function rememberAcceptedRegistration(groupKey, primeText, compositeText) {
+  const accepted = {
+    prime_text: String(primeText ?? ""),
+    composite_text: String(compositeText ?? ""),
+  };
+  state.acceptedRegistrationByGroup[groupKey] = accepted;
+  const customization = currentRegisteredCustomization(groupKey);
+  if (!customization?.enabled) return null;
+  state.registeredCustomizations[groupKey] = {
+    enabled: true,
+    ...accepted,
+    updated_at: new Date().toISOString(),
+  };
+  return writeRegisteredCustomizations();
+}
+
+function toggleRegisteredCustomization() {
+  if (!el.saveCustomizationToggle) return;
+  const groupKey = registeredCustomizationGroupKey();
+  if (!el.saveCustomizationToggle.checked) {
+    delete state.registeredCustomizations[groupKey];
+    const removed = writeRegisteredCustomizations();
+    el.registerStatus.textContent = removed
+      ? `${currentRoomGroupOption().label}の保存を解除しました。現在の対局中は内容を維持します。`
+      : "ブラウザの保存設定を解除できませんでした。";
+    renderRegisteredCustomization();
+    return;
+  }
+
+  state.registeredCustomizations[groupKey] = {
+    enabled: true,
+    prime_text: "",
+    composite_text: "",
+    updated_at: "",
+  };
+  const accepted = state.acceptedRegistrationByGroup[groupKey];
+  const saved = accepted
+    ? rememberAcceptedRegistration(groupKey, accepted.prime_text, accepted.composite_text)
+    : writeRegisteredCustomizations();
+  if (!saved) {
+    delete state.registeredCustomizations[groupKey];
+    el.saveCustomizationToggle.checked = false;
+    el.registerStatus.textContent = "ブラウザにカスタマイズを保存できませんでした。";
+  } else {
+    el.registerStatus.textContent = accepted
+      ? `${currentRoomGroupOption().label}の現在の登録内容を保存しました。`
+      : "次に登録またはサンプル読込した内容を保存します。";
+  }
+  renderRegisteredCustomization();
+}
+
+function renderRegisteredCustomization() {
+  if (!el.saveCustomizationToggle || !el.saveCustomizationNote) return;
+  const groupKey = registeredCustomizationGroupKey();
+  const customization = currentRegisteredCustomization(groupKey);
+  const groupLabel = CONFIG.roomGroups[groupKey]?.label || currentRoomGroupOption().label;
+  el.saveCustomizationToggle.checked = Boolean(customization?.enabled);
+  el.saveCustomizationNote.textContent = customization?.enabled
+    ? customization.updated_at
+      ? `${groupLabel}用としてこのブラウザに保存済みです。`
+      : `${groupLabel}で次に登録またはサンプル読込した内容を保存します。`
+    : `${groupLabel}では入室時に部屋の既定表を読み込みます。`;
 }
 
 function selectRoomGroup(roomGroupKey) {
@@ -980,8 +1099,14 @@ function handleMessage(msg) {
       if (state.chatMode !== "global") state.globalUnreadCount += 1;
       break;
     case "error":
+      const failedRegistrationRequest = state.pendingRegistrationRequest;
+      state.pendingRegistrationRequest = null;
       if (msg.code === "registered_number_limit") {
         el.registerStatus.textContent = msg.message || "登録数が上限を超えています";
+      }
+      if (failedRegistrationRequest?.kind === "restore") {
+        log("error", "保存したカスタマイズを復元できなかったため、部屋の既定表を読み込みます。");
+        loadSample();
       }
       if (state.chatMode === "global") {
         state.globalChatJoining = false;
@@ -1179,12 +1304,12 @@ function startFlow(flow) {
 function continuePendingFlowAfterJoin() {
   if (!state.pendingFlow) return;
   if (state.pendingFlow === "enter") {
-    if (CONFIG.features.registration) loadSample();
+    if (CONFIG.features.registration) loadRegisteredNumbersForCurrentRoom();
     state.pendingFlow = null;
     return;
   }
   if (state.pendingFlow !== "watch") {
-    loadSample();
+    loadRegisteredNumbersForCurrentRoom();
     if (!state.isWaiting) {
       state.isWaiting = true;
       send({ type: "change_status", status: "waiting" });
@@ -1491,22 +1616,60 @@ function startGame() {
   send({ type: "start_game" });
 }
 
+function loadRegisteredNumbersForCurrentRoom() {
+  const groupKey = registeredCustomizationGroupKey();
+  const customization = currentRegisteredCustomization(groupKey);
+  if (!el.saveCustomizationToggle || !hasSavedRegisteredCustomization(groupKey)) {
+    loadSample();
+    return;
+  }
+  el.primeText.value = customization.prime_text;
+  el.compositeText.value = customization.composite_text;
+  state.pendingRegistrationRequest = {
+    kind: "restore",
+    groupKey,
+    primeText: customization.prime_text,
+    compositeText: customization.composite_text,
+  };
+  send({
+    type: "set_registered_numbers",
+    prime_text: customization.prime_text,
+    composite_text: customization.composite_text,
+  });
+  el.registerStatus.textContent = "保存したカスタマイズを読み込み中...";
+}
+
 function loadSample() {
   const selected = el.sampleSelect.value || currentRoomOption().defaultSampleKey || CONFIG.defaultSampleKey;
+  state.pendingRegistrationRequest = {
+    kind: "sample",
+    groupKey: registeredCustomizationGroupKey(),
+    sampleKey: selected,
+  };
   send({ type: "load_sample_registered_primes", sample_key: selected });
   el.registerStatus.textContent = "サンプル読み込み中...";
 }
 
 function saveRegisteredNumbers() {
+  const primeText = el.primeText.value;
+  const compositeText = el.compositeText.value;
+  state.pendingRegistrationRequest = {
+    kind: "manual",
+    groupKey: registeredCustomizationGroupKey(),
+    primeText,
+    compositeText,
+  };
   send({
     type: "set_registered_numbers",
-    prime_text: el.primeText.value,
-    composite_text: el.compositeText.value,
+    prime_text: primeText,
+    composite_text: compositeText,
   });
   el.registerStatus.textContent = "登録中...";
 }
 
 function renderRegisteredStatus(msg) {
+  const request = state.pendingRegistrationRequest;
+  state.pendingRegistrationRequest = null;
   if (msg.sample_key) el.sampleSelect.value = msg.sample_key;
   if (msg.sample_prime_text) el.primeText.value = msg.sample_prime_text;
   if (msg.sample_composite_text) el.compositeText.value = msg.sample_composite_text;
@@ -1519,9 +1682,24 @@ function renderRegisteredStatus(msg) {
   const primeCount = msg.prime_count ?? msg.count ?? 0;
   const compositeCount = msg.composite_count ?? 0;
   const errorCount = (msg.prime_errors || msg.errors || []).length + (msg.composite_errors || []).length;
-  el.registerStatus.textContent = errorCount
+  const groupKey = request?.groupKey || registeredCustomizationGroupKey();
+  const primeText = typeof msg.sample_prime_text === "string"
+    ? msg.sample_prime_text
+    : request?.primeText ?? el.primeText.value;
+  const compositeText = typeof msg.sample_composite_text === "string"
+    ? msg.sample_composite_text
+    : request?.compositeText ?? el.compositeText.value;
+  const customizationSaved = rememberAcceptedRegistration(groupKey, primeText, compositeText);
+  const saveStatus = customizationSaved === true
+    ? " / カスタマイズ保存済み"
+    : customizationSaved === false
+      ? " / ブラウザ保存失敗"
+      : "";
+  const countStatus = errorCount
     ? `素数 ${primeCount} / 合成数 ${compositeCount} / エラー ${errorCount}`
     : `素数 ${primeCount} / 合成数 ${compositeCount}`;
+  el.registerStatus.textContent = `${countStatus}${saveStatus}`;
+  renderRegisteredCustomization();
   renderSelection();
   scheduleAssist();
 }
@@ -1827,6 +2005,7 @@ function renderAll() {
   updateIdentityModeUi();
   renderSoundToggle();
   renderRoomChoice();
+  renderRegisteredCustomization();
   renderRecruitments();
   renderChat();
   el.playStatus.textContent = state.isWaiting

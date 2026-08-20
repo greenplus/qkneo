@@ -23,7 +23,7 @@ const CONFIG = {
       title: "7枚 / 偶数半減",
       summary: "ペナルティ1枚",
       badge: "7枚 / 偶数半減 / ペナルティ1枚",
-      defaultSampleKey: "gold_prime_table",
+      defaultSampleKey: "neo_beginner_prime_table",
       defaultCpuKey: "gold_planner",
     },
     beginner2: {
@@ -34,7 +34,7 @@ const CONFIG = {
       title: "7枚 / 偶数半減",
       summary: "ペナルティ1枚",
       badge: "7枚 / 偶数半減 / ペナルティ1枚",
-      defaultSampleKey: "gold_prime_table",
+      defaultSampleKey: "neo_beginner_prime_table",
       defaultCpuKey: "gold_planner",
     },
     beginner3: {
@@ -45,7 +45,7 @@ const CONFIG = {
       title: "7枚 / 偶数半減",
       summary: "ペナルティ1枚",
       badge: "7枚 / 偶数半減 / ペナルティ1枚",
-      defaultSampleKey: "gold_prime_table",
+      defaultSampleKey: "neo_beginner_prime_table",
       defaultCpuKey: "gold_planner",
     },
     advanced1: {
@@ -847,6 +847,7 @@ function renderSampleOptions() {
 
 function readableSampleLabel(option) {
   const labels = {
+    neo_beginner_prime_table: "初級素数表",
     sashimi2024: "おすすめセット",
     tournament_order: "大会風セット",
     gold_prime_table: "ゴールド素数表",

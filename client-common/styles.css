@@ -1192,6 +1192,31 @@ textarea,
   line-height: 1.5;
 }
 
+.register-customization-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  color: var(--ink);
+  font-size: 0.88rem;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.register-customization-toggle input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.register-customization-note {
+  margin-top: -4px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
 code {
   border-radius: 4px;
   background: #eef3f1;

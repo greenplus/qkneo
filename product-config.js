@@ -28,7 +28,7 @@ window.PRIMEQK_CLIENT_CONFIG = {
       title: "7枚 / 偶数半減",
       summary: "ペナルティ1枚",
       badge: "7枚 / 偶数半減 / ペナルティ1枚",
-      defaultSampleKey: "gold_prime_table",
+      defaultSampleKey: "neo_beginner_prime_table",
       defaultCpuKey: "gold_planner",
     },
     beginner2: {
@@ -39,7 +39,7 @@ window.PRIMEQK_CLIENT_CONFIG = {
       title: "7枚 / 偶数半減",
       summary: "ペナルティ1枚",
       badge: "7枚 / 偶数半減 / ペナルティ1枚",
-      defaultSampleKey: "gold_prime_table",
+      defaultSampleKey: "neo_beginner_prime_table",
       defaultCpuKey: "gold_planner",
     },
     beginner3: {
@@ -50,7 +50,7 @@ window.PRIMEQK_CLIENT_CONFIG = {
       title: "7枚 / 偶数半減",
       summary: "ペナルティ1枚",
       badge: "7枚 / 偶数半減 / ペナルティ1枚",
-      defaultSampleKey: "gold_prime_table",
+      defaultSampleKey: "neo_beginner_prime_table",
       defaultCpuKey: "gold_planner",
     },
     advanced1: {
