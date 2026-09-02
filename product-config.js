@@ -93,5 +93,6 @@ window.PRIMEQK_CLIENT_CONFIG = {
     largestPrimeShare: true,
     globalChat: true,
     recruitment: true,
+    turnAlternation: true,
   },
 };

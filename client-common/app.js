@@ -22,6 +22,7 @@ const CONFIG = {
     tournament: false,
     recruitment: false,
     practiceAuth: false,
+    turnAlternation: false,
     ...(PRODUCT_CONFIG.features || {}),
   },
   roomGroupOrder,
@@ -135,6 +136,10 @@ const state = {
   sampleLoadedForFlow: false,
   cpuRequestedForFlow: false,
   startRequestedForFlow: false,
+  turnAlternationEnabled: false,
+  turnAlternationFirst: "random",
+  startGameRequest: null,
+  startGameRequestActionPending: false,
   assistTimer: null,
   assistRequestVersion: 0,
   practiceAuthorized: !CONFIG.features.practiceAuth,
@@ -151,7 +156,10 @@ document.addEventListener("DOMContentLoaded", () => {
   initializeRecruitmentForm();
   initializePracticeAuth();
   connect();
-  state.turnClockTimer = window.setInterval(renderTurnClock, 1000);
+  state.turnClockTimer = window.setInterval(() => {
+    renderTurnClock();
+    renderStartGameRequest();
+  }, 1000);
   if (CONFIG.features.tournament) {
     state.tournamentCountdownTimer = window.setInterval(renderTournamentCallCountdown, 1000);
   }
@@ -360,6 +368,18 @@ function bindElements() {
     "readyBtn",
     "addCpuBtn",
     "startBtn",
+    "turnOrderSettings",
+    "turnAlternationToggle",
+    "turnAlternationFirstSelect",
+    "turnAlternationNote",
+    "startRequestPanel",
+    "startRequestText",
+    "cancelStartRequestBtn",
+    "startGameApprovalDialog",
+    "startGameApprovalText",
+    "startGameApprovalCountdown",
+    "rejectStartGameBtn",
+    "approveStartGameBtn",
     "reconnectPolicyNote",
     "cpuChooser",
     "cpuProfileSelect",
@@ -495,6 +515,32 @@ function bindEvents() {
   el.cpuChooserCloseBtn.addEventListener("click", closeCpuChooser);
   el.confirmCpuBtn.addEventListener("click", confirmCpuSelection);
   el.startBtn.addEventListener("click", startGame);
+  if (el.turnAlternationToggle) {
+    el.turnAlternationToggle.addEventListener("change", () => {
+      state.turnAlternationEnabled = el.turnAlternationToggle.checked;
+      renderTurnOrderSettings();
+    });
+  }
+  if (el.turnAlternationFirstSelect) {
+    el.turnAlternationFirstSelect.addEventListener("change", () => {
+      state.turnAlternationFirst = el.turnAlternationFirstSelect.value;
+    });
+  }
+  if (el.cancelStartRequestBtn) {
+    el.cancelStartRequestBtn.addEventListener("click", cancelStartGameRequest);
+  }
+  if (el.approveStartGameBtn) {
+    el.approveStartGameBtn.addEventListener("click", () => respondToStartGameRequest(true));
+  }
+  if (el.rejectStartGameBtn) {
+    el.rejectStartGameBtn.addEventListener("click", () => respondToStartGameRequest(false));
+  }
+  if (el.startGameApprovalDialog) {
+    el.startGameApprovalDialog.addEventListener("cancel", (event) => {
+      event.preventDefault();
+      respondToStartGameRequest(false);
+    });
+  }
   el.sampleBtn.addEventListener("click", loadSample);
   el.saveRegisterBtn.addEventListener("click", saveRegisteredNumbers);
   if (el.saveCustomizationToggle) {
@@ -757,6 +803,7 @@ function connect() {
 
   state.ws.addEventListener("close", () => {
     state.connected = false;
+    clearStartGameRequest();
     state.recruitmentSubmitPending = false;
     state.globalChatSubscribed = false;
     state.globalChatJoining = false;
@@ -876,6 +923,7 @@ function handleMessage(msg) {
       break;
     case "room_left":
       if (msg.room_id) removeRoomResumeToken(msg.room_id);
+      clearStartGameRequest();
       clearTurnClock();
       break;
     case "update_room_status":
@@ -925,6 +973,9 @@ function handleMessage(msg) {
       break;
     }
     case "session_replaced":
+      clearStartGameRequest();
+      state.turnAlternationEnabled = false;
+      state.turnAlternationFirst = "random";
       state.roomJoined = false;
       state.appMode = "setup";
       state.roomState = "waiting";
@@ -994,7 +1045,27 @@ function handleMessage(msg) {
       state.sampleLoadedForFlow = true;
       continuePendingFlowAfterRegistration();
       break;
+    case "start_game_request_pending":
+      syncServerClock(msg.server_now);
+      state.startGameRequest = { ...msg, role: "requester" };
+      state.startGameRequestActionPending = false;
+      log("system", `${msg.opponent_name || "相手"}へ手番交互の開始申請を送りました。`);
+      break;
+    case "start_game_approval_required":
+      syncServerClock(msg.server_now);
+      state.startGameRequest = { ...msg, role: "opponent" };
+      state.startGameRequestActionPending = false;
+      log("system", `${msg.requester_name || "相手"}から手番交互の開始申請が届きました。`);
+      break;
+    case "start_game_request_resolved":
+      syncServerClock(msg.server_now);
+      if (!state.startGameRequest || state.startGameRequest.request_id === msg.request_id) {
+        clearStartGameRequest();
+      }
+      log(msg.status === "accepted" ? "system" : "error", msg.message || "開始申請を終了しました。");
+      break;
     case "game_start":
+      clearStartGameRequest();
       state.appMode = "playing";
       state.roomState = "playing";
       state.firstPlayerId = null;
@@ -1103,6 +1174,9 @@ function handleMessage(msg) {
       state.pendingRegistrationRequest = null;
       if (msg.code === "registered_number_limit") {
         el.registerStatus.textContent = msg.message || "登録数が上限を超えています";
+      }
+      if (String(msg.code || "").startsWith("start_game_")) {
+        state.startGameRequestActionPending = false;
       }
       if (failedRegistrationRequest?.kind === "restore") {
         log("error", "保存したカスタマイズを復元できなかったため、部屋の既定表を読み込みます。");
@@ -1538,6 +1612,9 @@ function leaveRoom() {
   state.appMode = "setup";
   state.isWaiting = false;
   state.pendingFlow = null;
+  clearStartGameRequest();
+  state.turnAlternationEnabled = false;
+  state.turnAlternationFirst = "random";
   state.cpuChooserOpen = false;
   state.selectedCpuKey = "";
   state.players = [];
@@ -1613,7 +1690,126 @@ function confirmCpuSelection() {
 }
 
 function startGame() {
-  send({ type: "start_game" });
+  const participantCount = state.players.filter((player) => player.status === "waiting").length;
+  const alternate = Boolean(
+    CONFIG.features.turnAlternation
+    && state.turnAlternationEnabled
+    && participantCount === 2
+  );
+  send({
+    type: "start_game",
+    ...(CONFIG.features.turnAlternation ? {
+      turn_order: {
+        alternate,
+        first: state.turnAlternationFirst,
+      },
+    } : {}),
+  });
+}
+
+function clearStartGameRequest() {
+  state.startGameRequest = null;
+  state.startGameRequestActionPending = false;
+  if (el.startGameApprovalDialog?.open) el.startGameApprovalDialog.close();
+}
+
+function startGameRequestSeconds() {
+  const expiresAtMs = parseClockTime(state.startGameRequest?.expires_at);
+  if (expiresAtMs === null) return 0;
+  return Math.max(0, Math.ceil((expiresAtMs - (Date.now() + state.serverOffsetMs)) / 1000));
+}
+
+function startGameRequestTurnText(request) {
+  if (request?.continuation && request.effective_first_player_name) {
+    return `前局と交互になるため、次局は${request.effective_first_player_name}が先手です。`;
+  }
+  if (request?.first === "random") {
+    return "初回の先手は、承認後にランダムで決まります。";
+  }
+  if (request?.effective_first_player_name) {
+    return `初回は${request.effective_first_player_name}が先手です。`;
+  }
+  return "初回の先手を確認できませんでした。";
+}
+
+function renderTurnOrderSettings() {
+  if (!el.turnOrderSettings || !CONFIG.features.turnAlternation) return;
+  const tournamentRoom = isTournamentRoom();
+  const participants = state.players.filter((player) => player.status === "waiting");
+  const twoPlayerGame = participants.length === 2;
+  const pending = Boolean(state.startGameRequest);
+  const controlsEnabled = (
+    state.roomJoined
+    && state.roomState !== "playing"
+    && state.isWaiting
+    && twoPlayerGame
+    && !pending
+    && !tournamentRoom
+  );
+  el.turnOrderSettings.classList.toggle("hidden", tournamentRoom);
+  el.turnAlternationToggle.checked = state.turnAlternationEnabled;
+  el.turnAlternationToggle.disabled = !controlsEnabled;
+  el.turnAlternationFirstSelect.value = state.turnAlternationFirst;
+  el.turnAlternationFirstSelect.disabled = !controlsEnabled || !state.turnAlternationEnabled;
+
+  if (!twoPlayerGame) {
+    el.turnAlternationNote.textContent = "2人対戦で使えます。1人プレイではこの設定を使用しません。";
+  } else if (participants.some((player) => player.is_cpu)) {
+    el.turnAlternationNote.textContent = "CPU戦では承認なしで開始し、同じ相手なら先手を交代します。";
+  } else {
+    el.turnAlternationNote.textContent = "対人戦では、開始するたびに相手の承認が必要です。";
+  }
+  renderStartGameRequest();
+}
+
+function renderStartGameRequest() {
+  if (!el.startRequestPanel || !CONFIG.features.turnAlternation) return;
+  const request = state.startGameRequest;
+  const seconds = request ? startGameRequestSeconds() : 0;
+  el.startRequestPanel.classList.toggle("hidden", !request);
+  if (!request) {
+    if (el.startGameApprovalDialog?.open) el.startGameApprovalDialog.close();
+    return;
+  }
+
+  const waitingText = request.role === "requester"
+    ? `${request.opponent_name}の承認待ち（残り${seconds}秒）`
+    : `${request.requester_name}から開始申請が届いています（残り${seconds}秒）`;
+  el.startRequestText.textContent = waitingText;
+  el.cancelStartRequestBtn.classList.toggle("hidden", request.role !== "requester");
+  el.cancelStartRequestBtn.disabled = state.startGameRequestActionPending || seconds <= 0;
+
+  if (request.role !== "opponent") {
+    if (el.startGameApprovalDialog?.open) el.startGameApprovalDialog.close();
+    return;
+  }
+  el.startGameApprovalText.textContent = `${request.requester_name}から「手番交互」での対戦開始申請が届きました。${startGameRequestTurnText(request)}`;
+  el.startGameApprovalCountdown.textContent = `承認期限まで残り${seconds}秒`;
+  el.approveStartGameBtn.disabled = state.startGameRequestActionPending || seconds <= 0;
+  el.rejectStartGameBtn.disabled = state.startGameRequestActionPending || seconds <= 0;
+  if (!el.startGameApprovalDialog.open && typeof el.startGameApprovalDialog.showModal === "function") {
+    el.startGameApprovalDialog.showModal();
+  }
+}
+
+function cancelStartGameRequest() {
+  const request = state.startGameRequest;
+  if (!request || request.role !== "requester" || state.startGameRequestActionPending) return;
+  state.startGameRequestActionPending = true;
+  send({ type: "cancel_start_game_request", request_id: request.request_id });
+  renderStartGameRequest();
+}
+
+function respondToStartGameRequest(approved) {
+  const request = state.startGameRequest;
+  if (!request || request.role !== "opponent" || state.startGameRequestActionPending) return;
+  state.startGameRequestActionPending = true;
+  send({
+    type: "respond_start_game_request",
+    request_id: request.request_id,
+    approved: approved === true,
+  });
+  renderStartGameRequest();
 }
 
 function loadRegisteredNumbersForCurrentRoom() {
@@ -2014,22 +2210,24 @@ function renderAll() {
       : "対戦待ち"
     : "観戦中";
   const tournamentRoom = isTournamentRoom();
+  const startRequestPending = Boolean(state.startGameRequest);
   el.readyBtn.textContent = state.isWaiting ? "待機をやめる" : "対戦に参加";
   el.readyBtn.classList.toggle("hidden", tournamentRoom);
   el.addCpuBtn.classList.toggle("hidden", tournamentRoom);
   el.startBtn.classList.toggle("hidden", tournamentRoom);
-  el.readyBtn.disabled = tournamentRoom || state.roomState === "playing";
+  el.readyBtn.disabled = tournamentRoom || state.roomState === "playing" || startRequestPending;
   el.addCpuBtn.textContent = state.currentRoomHasCpu ? "CPU退出" : "CPU追加";
   el.addCpuBtn.setAttribute("aria-expanded", String(state.cpuChooserOpen && !state.currentRoomHasCpu));
-  el.addCpuBtn.disabled = state.roomState === "playing" || (
+  el.addCpuBtn.disabled = startRequestPending || state.roomState === "playing" || (
     !state.currentRoomHasCpu
     && !(state.roomCpuProfiles[currentRoomId()] || []).length
   );
-  el.startBtn.disabled = tournamentRoom || state.roomState === "playing" || !state.isWaiting;
+  el.startBtn.disabled = tournamentRoom || startRequestPending || state.roomState === "playing" || !state.isWaiting;
   if (el.reconnectPolicyNote) {
     el.reconnectPolicyNote.textContent = `通信切断時は対戦中${formatDuration(state.playingDisconnectGraceSeconds)}、待機中${formatDuration(state.waitingDisconnectGraceSeconds)}まで同じブラウザから復帰できます。「退室」は復帰待ちになりません。`;
   }
   renderCpuChooser();
+  renderTurnOrderSettings();
   el.playBtn.disabled = !isMyTurn() || !state.selectedCards.length || (state.compositeMode && !state.compositeTokens.length);
   el.playBtn.textContent = isHnpChallengeSelection() ? "HNPチャレンジ" : "出す";
   el.compositeModeBtn.disabled = !state.allowComposite || state.roomState !== "playing" || !state.hand.length;
