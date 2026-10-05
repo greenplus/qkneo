@@ -12,10 +12,12 @@ window.PRIMEQK_CLIENT_CONFIG = {
   roomGroups: {
     beginner: {
       label: "初級",
+      compactRooms: true,
       roomKeys: ["beginner1", "beginner2", "beginner3"],
     },
     advanced: {
       label: "上級",
+      compactRooms: true,
       roomKeys: ["advanced1", "advanced2", "advanced3"],
     },
   },
