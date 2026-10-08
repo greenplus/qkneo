@@ -85,6 +85,10 @@ const state = {
   playingDisconnectGraceSeconds: 60,
   waitingDisconnectGraceSeconds: 60,
   roomRules: {},
+  roomRuleDetails: {},
+  specialRoomRules: [],
+  specialRuleOwner: null,
+  specialRuleChangeAllowed: false,
   roomCpuProfiles: {},
   roomHnpChallengeEnabled: {},
   roomRegisteredNumberLimits: {},
@@ -967,6 +971,7 @@ function handleMessage(msg) {
       state.roomCounts = msg.counts || {};
       state.roomCountsLoaded = true;
       state.roomRules = msg.rules || {};
+      state.roomRuleDetails = msg.rule_details || {};
       state.roomCpuProfiles = msg.cpu_profiles || {};
       state.roomHnpChallengeEnabled = msg.hnp_challenge_enabled || {};
       state.roomRegisteredNumberLimits = msg.registered_number_limits || {};
@@ -1006,6 +1011,7 @@ function handleMessage(msg) {
       persistCurrentName();
       break;
     case "room_state_initialization":
+      acceptSpecialRoomState(msg);
       state.roomJoined = true;
       state.roomState = msg.room_state || "waiting";
       state.turnAlternationSeries = msg.turn_alternation_series || null;
@@ -1049,6 +1055,7 @@ function handleMessage(msg) {
       break;
     case "update_room_status":
       if (msg.room_id === currentRoomId()) {
+        acceptSpecialRoomState(msg);
         const nextPlayers = msg.player_list || [];
         state.roomCounts[currentRoomId()] = msg.count;
         state.currentRoomHasCpu = nextPlayers.some((player) => player.is_cpu);
@@ -1197,6 +1204,7 @@ function handleMessage(msg) {
       state.appMode = "playing";
       state.roomState = "playing";
       state.firstPlayerId = null;
+      state.turnOrderIds = [];
       syncTurnClock(msg);
       if (typeof msg.hnp_challenge_enabled === "boolean") state.hnpChallengeEnabled = msg.hnp_challenge_enabled;
       clearFlowPreview(false);
@@ -1217,6 +1225,7 @@ function handleMessage(msg) {
       state.roomState = msg.state || state.roomState;
       state.currentTurn = msg.current_turn || "";
       state.firstPlayerId = msg.first_player_id || state.firstPlayerId;
+      state.turnOrderIds = msg.turn_order_ids || [];
       state.currentRoomHasCpu = (msg.player_list || []).some((player) => player.is_cpu);
       syncTurnClock(msg);
       if (isTournamentRoom() && msg.tournament) setTournamentState(msg.tournament);
@@ -1279,6 +1288,7 @@ function handleMessage(msg) {
       logScoreRecord(
         msg.lines || [],
         msg.scope === "tournament_match" ? el.tournamentMatchLogBox : el.roomLogBox,
+        msg.conversion_notes || [],
       );
       break;
     case "turn_alternation_series_record":
@@ -1890,6 +1900,7 @@ function startGame() {
   const continuingSeries = isContinuingTurnAlternationSeries(participants);
   const alternate = Boolean(
     CONFIG.features.turnAlternation
+    && !state.roomRuleDetails[currentRoomId()]?.multiplayer_enabled
     && (state.turnAlternationEnabled || continuingSeries)
     && participantCount === 2
   );
@@ -1944,6 +1955,7 @@ function startGameRequestTurnText(request) {
 function renderTurnOrderSettings() {
   if (!el.turnOrderSettings || !CONFIG.features.turnAlternation) return;
   const tournamentRoom = isTournamentRoom();
+  const multiplayerRoom = !!state.roomRuleDetails[currentRoomId()]?.multiplayer_enabled;
   const participants = state.players.filter((player) => player.status === "waiting");
   const twoPlayerGame = participants.length === 2;
   const pending = Boolean(state.startGameRequest);
@@ -1956,8 +1968,9 @@ function renderTurnOrderSettings() {
     && twoPlayerGame
     && !pending
     && !tournamentRoom
+    && !multiplayerRoom
   );
-  el.turnOrderSettings.classList.toggle("hidden", tournamentRoom);
+  el.turnOrderSettings.classList.toggle("hidden", tournamentRoom || multiplayerRoom);
   el.turnAlternationToggle.checked = state.turnAlternationEnabled || continuingSeries;
   el.turnAlternationToggle.disabled = !controlsEnabled || continuingSeries;
   el.turnAlternationFirstSelect.value = state.turnAlternationFirst;
@@ -2172,20 +2185,26 @@ function readableSampleLabel(option) {
 
 function renderPlayers(players, waitingCount) {
   state.players = players;
+  const multiplayer = !!state.roomRuleDetails[currentRoomId()]?.multiplayer_enabled;
+  el.playerList.closest(".status-list").classList.toggle("multiplayer", multiplayer);
+  el.playerList.previousElementSibling.textContent = multiplayer && state.roomState === "playing" ? "手番順" : "参加";
   const self = players.find((player) => player.id === state.playerId);
   if (self) state.isWaiting = self.status === "waiting";
   const participants = players
     .filter((player) => player.status === "waiting")
+    .sort((a, b) => state.roomState === "playing" && state.roomRuleDetails[currentRoomId()]?.multiplayer_enabled
+      ? (state.turnOrderIds || []).indexOf(a.id) - (state.turnOrderIds || []).indexOf(b.id)
+      : 0)
     .map(playerLabel);
   const watchers = players
     .filter((player) => player.status !== "waiting")
     .map(playerLabel);
-  el.playerList.textContent = participants.length ? participants.join("、") : "なし";
+  el.playerList.textContent = participants.length ? participants.join(state.roomState === "playing" && state.roomRuleDetails[currentRoomId()]?.multiplayer_enabled ? " → " : "、") : "なし";
   el.watcherList.textContent = watchers.length ? watchers.join("、") : "なし";
   el.playerList.title = participants.join("、");
   el.watcherList.title = watchers.join("、");
   if (waitingCount !== null) {
-    const canStart = state.isWaiting && (waitingCount === 1 || waitingCount === 2);
+    const canStart = state.isWaiting && waitingCount >= 1 && waitingCount <= (state.roomRuleDetails[currentRoomId()]?.max_players || 2);
     el.startBtn.disabled = !canStart;
   }
 }
@@ -2272,6 +2291,11 @@ function renderHandMetrics() {
     const spectatorCounts = spectatorHandCounts();
     renderSpectatorHandMetric(el.myHandMetric, el.myHandLabel, el.myHandCount, "先手", spectatorCounts[0]);
     renderSpectatorHandMetric(el.opponentMetric, el.opponentLabel, el.opponentCounts, "後手", spectatorCounts[1]);
+    if (state.roomRuleDetails[currentRoomId()]?.multiplayer_enabled) {
+      renderSpectatorHandMetric(el.myHandMetric, el.myHandLabel, el.myHandCount, "先手", spectatorCounts[0]);
+      el.opponentLabel.textContent = "他の対戦者";
+      renderOpponentCounts(spectatorCounts.slice(1), { excludeSelf: false });
+    }
     return;
   }
 
@@ -2303,8 +2327,8 @@ function renderSpectatorHandMetric(metric, label, count, side, player) {
   metric.setAttribute("aria-label", description);
 }
 
-function renderOpponentCounts(handCounts) {
-  const opponents = handCounts.filter((item) => (
+function renderOpponentCounts(handCounts, { excludeSelf = true } = {}) {
+  const opponents = handCounts.filter((item) => !excludeSelf || (
     state.playerId && item.id
       ? item.id !== state.playerId
       : item.name !== state.playerName
@@ -2459,7 +2483,55 @@ function renderTournamentSpectatorTurnClock() {
   el.tournamentSpectatorTurn.textContent = `${selected.current_turn}の手番${clockText}`;
 }
 
+function acceptSpecialRoomState(msg) {
+  if (msg.rule_details) state.roomRuleDetails[msg.room_id || currentRoomId()] = msg.rule_details;
+  state.specialRoomRules = msg.available_room_rules || [];
+  state.specialRuleOwner = msg.rule_owner_id || null;
+  state.specialRuleChangeAllowed = !!msg.rule_change_allowed;
+  if (typeof msg.allow_composite === "boolean") state.allowComposite = msg.allow_composite;
+}
+
+function renderHyakkiControls() {
+  const control = document.getElementById("specialRuleControl");
+  const select = document.getElementById("specialRuleSelect");
+  const rule = isTournamentRoom() ? state.tournament?.rule : state.roomRuleDetails[currentRoomId()];
+  const help = document.getElementById("hyakkiRuleHelp");
+  if (help) {
+    help.classList.toggle("hidden", !rule?.description);
+    document.getElementById("hyakkiRuleDescription").textContent = rule?.description || "";
+  }
+  if (control && select) {
+    const visible = state.roomJoined && currentRoomId() === "hyakki_archive_1";
+    control.classList.toggle("hidden", !visible);
+    const signature = JSON.stringify(state.specialRoomRules);
+    if (select.dataset.signature !== signature) {
+      select.replaceChildren(...state.specialRoomRules.map(item => {
+        const option = document.createElement("option");
+        option.value = item.key;
+        option.textContent = item.label;
+        return option;
+      }));
+      select.dataset.signature = signature;
+    }
+    select.value = rule?.key || "";
+    select.disabled = !state.specialRuleChangeAllowed || state.roomState === "playing" || state.specialRuleOwner !== state.playerId;
+    select.onchange = () => send({type: "set_special_room_rule", rule_key: select.value});
+  }
+  const toggle = document.getElementById("kjqjConvert");
+  const wrapper = document.getElementById("kjqjControl");
+  if (wrapper && toggle) {
+    const opponents = state.handCounts.filter(p => p.id !== state.playerId);
+    const eligible = rule?.kjqj_conversion && isMyTurn() && !state.compositeMode
+      && state.hand.length <= 12 && opponents.length === 1 && opponents[0].count >= 13
+      && state.selectedCards.length === 4;
+    wrapper.classList.toggle("hidden", !eligible);
+    toggle.disabled = !eligible;
+    if (!eligible) toggle.checked = false;
+  }
+}
+
 function renderAll() {
+  renderHyakkiControls();
   document.body.dataset.mode = state.appMode;
   el.setupPanel.classList.toggle("hidden", state.appMode !== "setup");
   el.roomPanel.classList.toggle("hidden", state.appMode === "setup");
@@ -2490,9 +2562,14 @@ function renderAll() {
     !state.currentRoomHasCpu
     && !(state.roomCpuProfiles[currentRoomId()] || []).length
   );
-  el.startBtn.disabled = tournamentRoom || startRequestPending || state.roomState === "playing" || !state.isWaiting;
+  const participants = state.players.filter(player => player.status === "waiting");
+  const maxPlayers = state.roomRuleDetails[currentRoomId()]?.max_players || 2;
+  el.startBtn.disabled = tournamentRoom || startRequestPending || state.roomState === "playing" || !state.isWaiting || participants.length < 1 || participants.length > maxPlayers;
+  if (!state.isWaiting && participants.length >= maxPlayers && state.roomRuleDetails[currentRoomId()]?.multiplayer_enabled) el.readyBtn.disabled = true;
   if (el.reconnectPolicyNote) {
-    el.reconnectPolicyNote.textContent = `通信切断時は対戦中${formatDuration(state.playingDisconnectGraceSeconds)}、待機中${formatDuration(state.waitingDisconnectGraceSeconds)}まで同じブラウザから復帰できます。「退室」は復帰待ちになりません。`;
+    el.reconnectPolicyNote.textContent = state.roomRuleDetails[currentRoomId()]?.multiplayer_enabled
+      ? "多人数戦では通信切断・退室した人を対戦から除外し、残りの人で続行します。残り手札はその局から取り除き、復帰後は観戦になります。"
+      : `通信切断時は対戦中${formatDuration(state.playingDisconnectGraceSeconds)}、待機中${formatDuration(state.waitingDisconnectGraceSeconds)}まで同じブラウザから復帰できます。「退室」は復帰待ちになりません。`;
   }
   renderCpuChooser();
   renderTurnOrderSettings();
@@ -2913,6 +2990,8 @@ function renderTournamentSpectator(activeMatches) {
   el.tournamentSpectatorScore.classList.toggle("hidden", !scoreLines.length);
   const scorePre = el.tournamentSpectatorScore.querySelector("pre");
   if (scorePre) scorePre.textContent = scoreLines.join("\n");
+  el.tournamentSpectatorScore.querySelector(".conversion-notes")?.remove();
+  appendConversionNotes(el.tournamentSpectatorScore, selected.conversion_notes);
   renderTournamentSpectatorTurnClock();
 }
 
@@ -3166,7 +3245,7 @@ function renderRoomChoice() {
   const turnClockBadge = Number.isFinite(turnTimeLimit)
     ? room.tournament ? `${turnTimeLimit}秒` : `対人${turnTimeLimit}秒`
     : "";
-  el.roomBadge.textContent = [room.badge, turnClockBadge].filter(Boolean).join(" / ");
+  el.roomBadge.textContent = [state.roomRuleDetails[roomId]?.summary || room.badge, turnClockBadge].filter(Boolean).join(" / ");
   el.roomHeading.textContent = room.tournament
     ? "大会ロビー"
     : `${room.label}ルーム ${room.roomNumber}`;
@@ -3270,7 +3349,7 @@ function renderRoomList() {
     const turnClockSummary = Number.isFinite(turnTimeLimit)
       ? room.tournament ? `${turnTimeLimit}秒・時間切れはパス` : `対人${turnTimeLimit}秒`
       : "";
-    ruleSummary.textContent = [roomGroup.compactRooms ? "" : room.summary, turnClockSummary].filter(Boolean).join(" / ");
+    ruleSummary.textContent = [roomGroup.compactRooms ? "" : (state.roomRuleDetails[room.roomId]?.summary || room.summary), turnClockSummary].filter(Boolean).join(" / ");
 
     const population = document.createElement("span");
     population.className = "room-slot-population";
@@ -3855,6 +3934,7 @@ function playSelected() {
       type: "play_card",
       cards: state.selectedCards,
       assigned_numbers: state.jokerAssignedRanks,
+      convert_kjqj: !!document.getElementById("kjqjConvert")?.checked,
     });
   }
   clearSelection();
@@ -4167,7 +4247,7 @@ function logGlobalChat(message) {
   el.globalLogBox.prepend(line);
 }
 
-function logScoreRecord(lines, target = el.roomLogBox) {
+function logScoreRecord(lines, target = el.roomLogBox, conversionNotes = []) {
   if (!target || !lines.length) return;
   const entry = document.createElement("details");
   entry.className = "log-line score-record";
@@ -4180,6 +4260,7 @@ function logScoreRecord(lines, target = el.roomLogBox) {
   const pre = document.createElement("pre");
   pre.textContent = lines.join("\n");
   entry.appendChild(pre);
+  appendConversionNotes(entry, conversionNotes);
 
   target.prepend(entry);
   if (target === el.tournamentMatchLogBox) {
@@ -4250,7 +4331,17 @@ function logTurnAlternationSeriesRecord(message, target = el.roomLogBox) {
   const pre = document.createElement("pre");
   pre.textContent = text;
   entry.append(summary, actions, pre);
+  appendConversionNotes(entry, (message.games || []).flatMap(game =>
+    (game.conversion_notes || []).map(note => `第${game.game_number}局 ${note}`)));
   target.prepend(entry);
+}
+
+function appendConversionNotes(entry, notes) {
+  if (!notes?.length) return;
+  const paragraph = document.createElement("p");
+  paragraph.className = "conversion-notes";
+  paragraph.textContent = notes.join(" / ");
+  entry.appendChild(paragraph);
 }
 
 function logTournamentScoreRecord(message) {
@@ -4266,5 +4357,6 @@ function logTournamentScoreRecord(message) {
   const pre = document.createElement("pre");
   pre.textContent = message.lines.join("\n");
   entry.append(summary, pre);
+  appendConversionNotes(entry, message.conversion_notes);
   el.roomLogBox.prepend(entry);
 }
